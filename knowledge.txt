@@ -54,6 +54,20 @@ This project scrapes sport facility booking information from ayo.co.id, a venue 
   - `price`: Slot price
   - `is-disabled`: Boolean string ("true" or "false")
 
+### 5. FIELD SPORT TYPE DETECTION
+- **Field Description**: Check `div.field_desc_point` class content
+- **Tennis Detection**: Look for "tennis" in field description text
+- **Padel Detection**: Look for "padel" in field description text
+- **Fallback**: Use `sport` attribute if field_desc_point not found
+- **Sport Type**: Determines if field is Tennis, Padel, or Unknown
+
+### 6. CABOR-BASED FIELD FILTERING
+- **CABOR 7**: Tennis only - excludes all padel fields
+- **CABOR 12**: Padel only - excludes all tennis fields
+- **Other CABOR**: Include all field types
+- **Filtering Logic**: Applied to both field extraction and time slot processing
+- **Exclusion Messages**: Shows "EXCLUDED (CABOR X)" for filtered fields
+
 ## IMPLEMENTATION APPROACH
 
 ### 1. DUAL SCRAPING STRATEGY
@@ -69,25 +83,46 @@ CONFIG = {
     'sortby': 5,
     'tipe': 'venue',
     'lokasi': 'Kota+Jakarta+Selatan',
-    'cabor': 7,
+    'cabor': 7,  # 7=Tennis, 12=Padel
     'max_venues_to_test': 3,  # Limit for testing
     'use_selenium': True
 }
 ```
 
+**Key Parameters:**
+- `BASE_URL`: Website base URL (default: https://ayo.co.id)
+- `VENUES_PATH`: Venues endpoint path (default: /venues)
+- `SORTBY`: Sort parameter (default: 5)
+- `TIPE`: Type filter (default: venue)
+- `LOKASI`: Location filter (default: empty)
+- `CABOR`: Sport category filter (7=Tennis, 12=Padel, default: 7)
+- `MAX_VENUES_TO_TEST`: Limit venues for testing (default: 3)
+- `USE_SELENIUM`: Enable Selenium scraping (default: True)
+- `MAX_PAGES`: Maximum pages to scrape (default: 1)
+
 ### 3. SELENIUM INTEGRATION
 - **WebDriver Setup**: Chrome with headless mode
 - **Wait Strategy**: Wait for `field-list-container` to be populated
 - **Element Detection**: CSS selectors for field containers and slot buttons
-- **Error Handling**: Graceful fallback to static scraping
 
-### 4. DATA EXTRACTION WORKFLOW
+### 4. CABOR-BASED FILTERING
+- **Sport-Specific Results**: Filter fields based on queried sport category
+- **Tennis Only (CABOR=7)**: Excludes all padel fields and their time slots
+- **Padel Only (CABOR=12)**: Excludes all tennis fields and their time slots
+- **Efficient Processing**: Skips time slot extraction for excluded fields
+- **Clear Feedback**: Shows exclusion messages for filtered fields
+
+### 5. DATA EXTRACTION WORKFLOW
 1. **Venue Discovery**: Scrape venue list pages for venue names and URLs
 2. **Pagination Handling**: Determine total pages and scrape specified number
 3. **Venue Detail Scraping**: For each venue, visit detail page
 4. **JavaScript Execution**: Use Selenium to render dynamic content
 5. **Field Information**: Extract field names, IDs, and availability status
-6. **Time Slot Data**: Extract available time slots with pricing
+6. **Sport Type Detection**: Determine if field is tennis or padel
+7. **CABOR Filtering**: Include only fields matching queried sport category
+8. **Time Slot Data**: Extract available time slots with pricing (only for included fields)
+9. **Data Aggregation**: Combine venue and slot information
+10. **Output Generation**: Save results to text and JSON files
 
 ## TECHNICAL IMPLEMENTATION DETAILS
 
@@ -154,6 +189,50 @@ for i, container in enumerate(field_containers):
             }
 ```
 
+### 5. FIELD SPORT TYPE DETECTION
+```python
+# Check field_desc_point to determine sport type
+field_sport_type = 'Unknown'
+try:
+    field_desc_point = container.find_element(By.CSS_SELECTOR, "div.field_desc_point")
+    field_desc_content = field_desc_point.text.strip()
+    
+    # Check if it's tennis or padel based on content
+    if 'tennis' in field_desc_content.lower():
+        field_sport_type = 'Tennis'
+    elif 'padel' in field_desc_content.lower():
+        field_sport_type = 'Padel'
+    else:
+        # Fallback to checking the sport attribute
+        field_sport_type = sport
+except Exception as e:
+    field_sport_type = sport
+```
+
+### 6. CABOR-BASED FIELD FILTERING
+```python
+def should_include_field(self, field_sport_type):
+    """Check if field should be included based on CABOR"""
+    # CABOR 7 = Tennis, CABOR 12 = Padel
+    if self.cabor == 7:  # Tennis only
+        return field_sport_type.lower() == 'tennis'
+    elif self.cabor == 12:  # Padel only
+        return field_sport_type.lower() == 'padel'
+    else:  # Other CABOR values - include all fields
+        return True
+
+# Apply filtering during field extraction
+if self.should_include_field(field_sport_type):
+    field_info = {
+        'field_name': field_name,
+        'field_sport_type': field_sport_type,
+        'slot_status': slot_status
+    }
+    fields.append(field_info)
+else:
+    print(f"Field {field_name} ({field_sport_type}) - EXCLUDED (CABOR {self.cabor})")
+```
+
 ## DEBUGGING APPROACH
 
 ### 1. STATIC HTML ANALYSIS
@@ -170,6 +249,30 @@ for i, container in enumerate(field_containers):
 - Fallback mechanisms for failed requests
 - Graceful degradation when Selenium fails
 - Comprehensive logging for troubleshooting
+
+## TEST RESULTS
+
+### CABOR-Based Filtering Effectiveness
+
+**CABOR=7 (Tennis Only) Test:**
+- ✅ **Wins Arena - Kuningan**: Tennis Court - Mizone (Tennis) - Included
+- ❌ **Padel Court A - Ungu (Padel)** - EXCLUDED (CABOR 7)
+- ❌ **Padel Court B - Hijau (Padel)** - EXCLUDED (CABOR 7)
+- ❌ **Padel Court C - Kuning (Padel)** - EXCLUDED (CABOR 7)
+- **Result**: Only tennis fields and their time slots shown
+
+**CABOR=12 (Padel Only) Test:**
+- ❌ **Tennis Court - Mizone (Tennis)** - EXCLUDED (CABOR 12)
+- ✅ **Padel Court A - Ungu (Padel)** - Included
+- ✅ **Court 1 (Padel)** - Included
+- ✅ **Court 2 (Padel)** - Included
+- **Result**: Only padel fields and their time slots shown
+
+**Performance Benefits:**
+- **Efficient Processing**: Skips time slot extraction for excluded fields
+- **Clean Output**: No irrelevant fields cluttering results
+- **Sport-Specific Results**: Perfect for targeted sport facility searches
+- **Clear Feedback**: Shows exclusion messages for transparency
 
 ## PROJECT STRUCTURE
 
