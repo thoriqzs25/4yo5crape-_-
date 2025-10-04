@@ -1,0 +1,358 @@
+{
+  "total_venues": 15,
+  "venues": [
+    {
+      "name": "Wins Arena - Kuningan",
+      "url": "https://ayo.co.id/v/wins-arena-kuningan",
+      "slot_status": "1 available fields",
+      "available_fields": [
+        {
+          "field_name": "Tennis Court - Mizone",
+          "field_name_attr": "Tennis Court - Mizone",
+          "field_id": "1743",
+          "sport": "Tennis",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Padel Court A - Ungu",
+          "field_name_attr": "Padel Court A - Ungu",
+          "field_id": "2082",
+          "sport": "Padel",
+          "slot_status": "Tidak tersedia"
+        },
+        {
+          "field_name": "Padel Court B - Hijau",
+          "field_name_attr": "Padel Court B - Hijau",
+          "field_id": "2083",
+          "sport": "Padel",
+          "slot_status": "Tidak tersedia"
+        },
+        {
+          "field_name": "Padel Court C - Kuning",
+          "field_name_attr": "Padel Court C - Kuning",
+          "field_id": "3071",
+          "sport": "Padel",
+          "slot_status": "Tidak tersedia"
+        }
+      ],
+      "time_slots": [
+        {
+          "slot_id": "27130851",
+          "field_id": "1743",
+          "date": "2025-10-04",
+          "start_time": "23:00",
+          "end_time": "00:00",
+          "price": "275000",
+          "is_disabled": false,
+          "field_name": "Tennis Court - Mizone"
+        }
+      ],
+      "total_fields": 4,
+      "total_time_slots": 1
+    },
+    {
+      "name": "Ambassador Tennis",
+      "url": "https://ayo.co.id/v/ambassador-tennis",
+      "slot_status": "2 available fields",
+      "available_fields": [
+        {
+          "field_name": "Ambassador 1",
+          "field_name_attr": "Ambassador 1",
+          "field_id": "1811",
+          "sport": "Tennis",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Ambassador 2",
+          "field_name_attr": "Ambassador 2",
+          "field_id": "2061",
+          "sport": "Tennis",
+          "slot_status": "Tidak tersedia"
+        },
+        {
+          "field_name": "Ambassador 3",
+          "field_name_attr": "Ambassador 3",
+          "field_id": "2062",
+          "sport": "Tennis",
+          "slot_status": "1 Jadwal Tersedia"
+        }
+      ],
+      "time_slots": [
+        {
+          "slot_id": "27120769",
+          "field_id": "1811",
+          "date": "2025-10-04",
+          "start_time": "20:00",
+          "end_time": "21:00",
+          "price": "180000",
+          "is_disabled": false,
+          "field_name": "Ambassador 1"
+        },
+        {
+          "slot_id": "27114003",
+          "field_id": "2062",
+          "date": "2025-10-04",
+          "start_time": "21:00",
+          "end_time": "22:00",
+          "price": "180000",
+          "is_disabled": false,
+          "field_name": "Ambassador 3"
+        }
+      ],
+      "total_fields": 3,
+      "total_time_slots": 2
+    },
+    {
+      "name": "Urban Tennis & Padel",
+      "url": "https://ayo.co.id/v/urban-tennis-padel",
+      "slot_status": "9 available fields",
+      "available_fields": [
+        {
+          "field_name": "Padel A",
+          "field_name_attr": "Padel A",
+          "field_id": "3473",
+          "sport": "Padel",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Padel B",
+          "field_name_attr": "Padel B",
+          "field_id": "3572",
+          "sport": "Padel",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Padel C",
+          "field_name_attr": "Padel C",
+          "field_id": "3573",
+          "sport": "Padel",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Padel D",
+          "field_name_attr": "Padel D",
+          "field_id": "3574",
+          "sport": "Padel",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Padel E",
+          "field_name_attr": "Padel E",
+          "field_id": "3575",
+          "sport": "Padel",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Padel F",
+          "field_name_attr": "Padel F",
+          "field_id": "3576",
+          "sport": "Padel",
+          "slot_status": "1 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Tennis 1",
+          "field_name_attr": "Tennis 1",
+          "field_id": "3577",
+          "sport": "Tennis",
+          "slot_status": "2 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Tennis 2",
+          "field_name_attr": "Tennis 2",
+          "field_id": "3474",
+          "sport": "Tennis",
+          "slot_status": "2 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Tennis 3",
+          "field_name_attr": "Tennis 3",
+          "field_id": "3578",
+          "sport": "Tennis",
+          "slot_status": "2 Jadwal Tersedia"
+        }
+      ],
+      "time_slots": [
+        {
+          "slot_id": "36122400",
+          "field_id": "3473",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "00:00",
+          "price": "1000000",
+          "is_disabled": false,
+          "field_name": "Padel A"
+        },
+        {
+          "slot_id": "36124545",
+          "field_id": "3572",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "00:00",
+          "price": "1000000",
+          "is_disabled": false,
+          "field_name": "Padel B"
+        },
+        {
+          "slot_id": "36121792",
+          "field_id": "3573",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "00:00",
+          "price": "1000000",
+          "is_disabled": false,
+          "field_name": "Padel C"
+        },
+        {
+          "slot_id": "36121800",
+          "field_id": "3574",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "00:00",
+          "price": "1000000",
+          "is_disabled": false,
+          "field_name": "Padel D"
+        },
+        {
+          "slot_id": "36122099",
+          "field_id": "3575",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "00:00",
+          "price": "1000000",
+          "is_disabled": false,
+          "field_name": "Padel E"
+        },
+        {
+          "slot_id": "36108348",
+          "field_id": "3576",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "00:00",
+          "price": "1000000",
+          "is_disabled": false,
+          "field_name": "Padel F"
+        },
+        {
+          "slot_id": "37603281",
+          "field_id": "3577",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "23:00",
+          "price": "350000",
+          "is_disabled": false,
+          "field_name": "Tennis 1"
+        },
+        {
+          "slot_id": "37603282",
+          "field_id": "3577",
+          "date": "2025-10-04",
+          "start_time": "23:00",
+          "end_time": "00:00",
+          "price": "350000",
+          "is_disabled": false,
+          "field_name": "Tennis 1"
+        },
+        {
+          "slot_id": "37606385",
+          "field_id": "3474",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "23:00",
+          "price": "350000",
+          "is_disabled": false,
+          "field_name": "Tennis 2"
+        },
+        {
+          "slot_id": "37606386",
+          "field_id": "3474",
+          "date": "2025-10-04",
+          "start_time": "23:00",
+          "end_time": "00:00",
+          "price": "350000",
+          "is_disabled": false,
+          "field_name": "Tennis 2"
+        },
+        {
+          "slot_id": "37604945",
+          "field_id": "3578",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "23:00",
+          "price": "350000",
+          "is_disabled": false,
+          "field_name": "Tennis 3"
+        },
+        {
+          "slot_id": "37604946",
+          "field_id": "3578",
+          "date": "2025-10-04",
+          "start_time": "23:00",
+          "end_time": "00:00",
+          "price": "350000",
+          "is_disabled": false,
+          "field_name": "Tennis 3"
+        }
+      ],
+      "total_fields": 9,
+      "total_time_slots": 12
+    },
+    {
+      "name": "Metro Margomulyo Tennis Indoor",
+      "url": "https://ayo.co.id/v/metro-margomulyo-tennis-indoor"
+    },
+    {
+      "name": "Wins Arena PG - Tennis",
+      "url": "https://ayo.co.id/v/wins-arena-pg-tennis"
+    },
+    {
+      "name": "MXL Ground",
+      "url": "https://ayo.co.id/v/mxl-ground"
+    },
+    {
+      "name": "RacketGo Sunter",
+      "url": "https://ayo.co.id/v/racketgo-sunter"
+    },
+    {
+      "name": "Maison Tennis Playcourt - Bintaro",
+      "url": "https://ayo.co.id/v/maison-tennis-playcourt-bintaro"
+    },
+    {
+      "name": "House Of Tennis Kedoya",
+      "url": "https://ayo.co.id/v/house-of-tennis-kedoya"
+    },
+    {
+      "name": "Homeground Signature Pluit",
+      "url": "https://ayo.co.id/v/homeground-signature-pluit"
+    },
+    {
+      "name": "Vlocity Arena",
+      "url": "https://ayo.co.id/v/vlocity-arena"
+    },
+    {
+      "name": "Tennis Matic Kedoya",
+      "url": "https://ayo.co.id/v/tennis-matic-kedoya"
+    },
+    {
+      "name": "Anwa Tennis Club",
+      "url": "https://ayo.co.id/v/anwa-tennis-club"
+    },
+    {
+      "name": "Anwa Racquet Club",
+      "url": "https://ayo.co.id/v/anwa-racquet-club"
+    },
+    {
+      "name": "Jubilee Tennis Court",
+      "url": "https://ayo.co.id/v/jubilee-tennis-court"
+    }
+  ],
+  "config_used": {
+    "base_url": "https://ayo.co.id",
+    "venues_path": "/venues",
+    "sortby": 5,
+    "tipe": "venue",
+    "lokasi": "",
+    "cabor": 7,
+    "max_venues_to_test": 3,
+    "use_selenium": true
+  }
+}

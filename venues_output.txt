@@ -1,0 +1,70 @@
+VENUE SCRAPING RESULTS
+==================================================
+
+Total venues found: 15
+Total pages available: 8
+
+VENUE LIST WITH SLOT INFO:
+------------------------------
+1. Wins Arena - Kuningan | url -> https://ayo.co.id/v/wins-arena-kuningan | slot available -> 1 available fields
+   Field: Tennis Court - Mizone - 1 Jadwal Tersedia
+   Field: Padel Court A - Ungu - Tidak tersedia
+   Field: Padel Court B - Hijau - Tidak tersedia
+   Field: Padel Court C - Kuning - Tidak tersedia
+   Available time slots:
+     Tennis Court - Mizone: 2025-10-04 23:00-00:00 - Rp275000
+
+2. Ambassador Tennis | url -> https://ayo.co.id/v/ambassador-tennis | slot available -> 2 available fields
+   Field: Ambassador 1 - 1 Jadwal Tersedia
+   Field: Ambassador 2 - Tidak tersedia
+   Field: Ambassador 3 - 1 Jadwal Tersedia
+   Available time slots:
+     Ambassador 1: 2025-10-04 20:00-21:00 - Rp180000
+     Ambassador 3: 2025-10-04 21:00-22:00 - Rp180000
+
+3. Urban Tennis & Padel | url -> https://ayo.co.id/v/urban-tennis-padel | slot available -> 9 available fields
+   Field: Padel A - 1 Jadwal Tersedia
+   Field: Padel B - 1 Jadwal Tersedia
+   Field: Padel C - 1 Jadwal Tersedia
+   Field: Padel D - 1 Jadwal Tersedia
+   Field: Padel E - 1 Jadwal Tersedia
+   Field: Padel F - 1 Jadwal Tersedia
+   Field: Tennis 1 - 2 Jadwal Tersedia
+   Field: Tennis 2 - 2 Jadwal Tersedia
+   Field: Tennis 3 - 2 Jadwal Tersedia
+   Available time slots:
+     Padel A: 2025-10-04 22:00-00:00 - Rp1000000
+     Padel B: 2025-10-04 22:00-00:00 - Rp1000000
+     Padel C: 2025-10-04 22:00-00:00 - Rp1000000
+     Padel D: 2025-10-04 22:00-00:00 - Rp1000000
+     Padel E: 2025-10-04 22:00-00:00 - Rp1000000
+     Padel F: 2025-10-04 22:00-00:00 - Rp1000000
+     Tennis 1: 2025-10-04 22:00-23:00 - Rp350000
+     Tennis 1: 2025-10-04 23:00-00:00 - Rp350000
+     Tennis 2: 2025-10-04 22:00-23:00 - Rp350000
+     Tennis 2: 2025-10-04 23:00-00:00 - Rp350000
+
+4. Metro Margomulyo Tennis Indoor | url -> https://ayo.co.id/v/metro-margomulyo-tennis-indoor | slot available -> Not checked
+
+5. Wins Arena PG - Tennis | url -> https://ayo.co.id/v/wins-arena-pg-tennis | slot available -> Not checked
+
+6. MXL Ground | url -> https://ayo.co.id/v/mxl-ground | slot available -> Not checked
+
+7. RacketGo Sunter | url -> https://ayo.co.id/v/racketgo-sunter | slot available -> Not checked
+
+8. Maison Tennis Playcourt - Bintaro | url -> https://ayo.co.id/v/maison-tennis-playcourt-bintaro | slot available -> Not checked
+
+9. House Of Tennis Kedoya | url -> https://ayo.co.id/v/house-of-tennis-kedoya | slot available -> Not checked
+
+10. Homeground Signature Pluit | url -> https://ayo.co.id/v/homeground-signature-pluit | slot available -> Not checked
+
+11. Vlocity Arena | url -> https://ayo.co.id/v/vlocity-arena | slot available -> Not checked
+
+12. Tennis Matic Kedoya | url -> https://ayo.co.id/v/tennis-matic-kedoya | slot available -> Not checked
+
+13. Anwa Tennis Club | url -> https://ayo.co.id/v/anwa-tennis-club | slot available -> Not checked
+
+14. Anwa Racquet Club | url -> https://ayo.co.id/v/anwa-racquet-club | slot available -> Not checked
+
+15. Jubilee Tennis Court | url -> https://ayo.co.id/v/jubilee-tennis-court | slot available -> Not checked
+

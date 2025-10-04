@@ -1,0 +1,53 @@
+{
+  "venue_name": "Ambassador Tennis",
+  "venue_url": "https://ayo.co.id/v/ambassador-tennis",
+  "fields": [
+    {
+      "field_name": "Ambassador 1",
+      "field_name_attr": "Ambassador 1",
+      "field_id": "1811",
+      "sport": "Tennis",
+      "slot_status": "1 Jadwal Tersedia"
+    },
+    {
+      "field_name": "Ambassador 2",
+      "field_name_attr": "Ambassador 2",
+      "field_id": "2061",
+      "sport": "Tennis",
+      "slot_status": "Tidak tersedia"
+    },
+    {
+      "field_name": "Ambassador 3",
+      "field_name_attr": "Ambassador 3",
+      "field_id": "2062",
+      "sport": "Tennis",
+      "slot_status": "1 Jadwal Tersedia"
+    }
+  ],
+  "time_slots": [
+    {
+      "slot_id": "27120769",
+      "field_id": "1811",
+      "date": "2025-10-04",
+      "start_time": "20:00",
+      "end_time": "21:00",
+      "price": "180000",
+      "is_disabled": false,
+      "field_name": "Ambassador 1"
+    },
+    {
+      "slot_id": "27114003",
+      "field_id": "2062",
+      "date": "2025-10-04",
+      "start_time": "21:00",
+      "end_time": "22:00",
+      "price": "180000",
+      "is_disabled": false,
+      "field_name": "Ambassador 3"
+    }
+  ],
+  "total_fields": 3,
+  "available_fields": 2,
+  "total_time_slots": 2,
+  "scraping_method": "selenium"
+}

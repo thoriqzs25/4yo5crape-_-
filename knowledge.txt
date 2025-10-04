@@ -1,0 +1,276 @@
+# AYO.CO.ID VENUE SCRAPING PROJECT - KNOWLEDGE BASE
+
+## PROJECT OVERVIEW
+This project scrapes sport facility booking information from ayo.co.id, a venue booking website. The main challenge was handling JavaScript-rendered content that loads dynamically after the initial page load.
+
+## TARGET WEBSITE STRUCTURE
+
+### 1. VENUE LIST PAGE
+- **URL Pattern**: `/venues?sortby=5&tipe=venue&lokasi=Kota+Jakarta+Selatan&cabor=7`
+- **Pagination**: `/venues?page=X` where X is the page number
+- **Venue Cards**: Located in `div.venue-card-item` elements
+- **Venue Name**: Extracted from `img` tag's `alt` attribute within `div > a > div > img`
+- **Venue URL**: Extracted from `a` tag's `href` attribute
+- **Pagination Info**: Found in `div.venue-pagination > ul.pagination > li > a` with `rel="next"`
+
+### 2. VENUE DETAIL PAGE
+- **URL Pattern**: `/v/{venue-slug}` (e.g., `/v/ambassador-tennis`)
+- **Field Container**: Empty `div#field-list-container` in initial HTML
+- **Dynamic Content**: Field information loaded via JavaScript after page load
+- **JavaScript Template**: `desktopFieldContainer` template generates field HTML
+
+## KEY CHALLENGES IDENTIFIED
+
+### 1. URL ENCODING ISSUE
+- **Problem**: `urllib.parse.urlencode()` converts `+` to `%2B`
+- **Solution**: Manual query string construction using `"&".join(params)`
+- **Reason**: Website expects `+` characters, not URL-encoded `%2B`
+
+### 2. DYNAMIC CONTENT LOADING
+- **Problem**: Field and slot information loaded via JavaScript after page load
+- **Initial HTML**: Contains empty `field-list-container` div
+- **JavaScript Template**: `desktopFieldContainer` generates field HTML dynamically
+- **Solution**: Selenium WebDriver to execute JavaScript and wait for content
+
+### 3. FIELD INFORMATION EXTRACTION
+- **Field Container**: `div.field-container.p-0.d-block` with `sport` attribute
+- **Field Name**: Text content of `div.s18-500` within field container
+- **Slot Button**: `div.field_slot_btn` with attributes:
+  - `field-name`: Field name
+  - `field-id`: Field ID
+  - `total-slots`: Number of available slots
+- **Slot Status**: Text content of `span.slot-available-text` within slot button
+
+### 4. TIME SLOT EXTRACTION
+- **Time Slot Items**: `div.field-slot-item` elements within field containers
+- **Disabled Slots**: Have `is-disabled="true"` attribute (NOT class-based)
+- **Available Slots**: Have `is-disabled="false"` attribute
+- **Slot Attributes**:
+  - `slot-id`: Unique slot identifier
+  - `field-id`: Associated field ID
+  - `date`: Slot date
+  - `start-time`: Start time
+  - `end-time`: End time
+  - `price`: Slot price
+  - `is-disabled`: Boolean string ("true" or "false")
+
+## IMPLEMENTATION APPROACH
+
+### 1. DUAL SCRAPING STRATEGY
+- **Static Scraping**: For venue discovery and basic information
+- **Selenium Scraping**: For dynamic content and slot information
+- **Fallback Mechanism**: Static scraping if Selenium fails
+
+### 2. CONFIGURATION MANAGEMENT
+```python
+CONFIG = {
+    'base_url': 'https://ayo.co.id',
+    'venues_path': '/venues',
+    'sortby': 5,
+    'tipe': 'venue',
+    'lokasi': 'Kota+Jakarta+Selatan',
+    'cabor': 7,
+    'max_venues_to_test': 3,  # Limit for testing
+    'use_selenium': True
+}
+```
+
+### 3. SELENIUM INTEGRATION
+- **WebDriver Setup**: Chrome with headless mode
+- **Wait Strategy**: Wait for `field-list-container` to be populated
+- **Element Detection**: CSS selectors for field containers and slot buttons
+- **Error Handling**: Graceful fallback to static scraping
+
+### 4. DATA EXTRACTION WORKFLOW
+1. **Venue Discovery**: Scrape venue list pages for venue names and URLs
+2. **Pagination Handling**: Determine total pages and scrape specified number
+3. **Venue Detail Scraping**: For each venue, visit detail page
+4. **JavaScript Execution**: Use Selenium to render dynamic content
+5. **Field Information**: Extract field names, IDs, and availability status
+6. **Time Slot Data**: Extract available time slots with pricing
+
+## TECHNICAL IMPLEMENTATION DETAILS
+
+### 1. URL CONSTRUCTION
+```python
+def build_venues_url(self, page=1):
+    params = []
+    params.append(f"sortby={self.config['sortby']}")
+    params.append(f"tipe={self.config['tipe']}")
+    params.append(f"lokasi={self.config['lokasi']}")
+    params.append(f"cabor={self.config['cabor']}")
+    
+    if page > 1:
+        params.append(f"page={page}")
+    
+    query_string = "&".join(params)
+    return f"{self.base_url}{self.config['venues_path']}?{query_string}"
+```
+
+### 2. SELENIUM WAIT STRATEGY
+```python
+# Wait for field-list-container to be populated
+wait.until(lambda driver: driver.find_element(By.ID, "field-list-container").text.strip() != "")
+
+# Additional wait for field containers to render
+time.sleep(3)
+```
+
+### 3. FIELD INFORMATION EXTRACTION
+```python
+# Find field containers
+field_containers = self.driver.find_elements(By.CSS_SELECTOR, "div.field-container")
+
+# Extract field information
+for container in field_containers:
+    field_name_div = container.find_element(By.CSS_SELECTOR, "div.s18-500")
+    field_name = field_name_div.text.strip()
+    
+    slot_button = container.find_element(By.CSS_SELECTOR, "div.field_slot_btn")
+    field_id = slot_button.get_attribute('field-id')
+    slot_status = slot_button.find_element(By.CSS_SELECTOR, "span.slot-available-text").text.strip()
+```
+
+### 4. TIME SLOT EXTRACTION
+```python
+# Find time slots within each field container
+for i, container in enumerate(field_containers):
+    slot_items = container.find_elements(By.CSS_SELECTOR, "div.field-slot-item")
+    
+    for slot in slot_items:
+        # Check is-disabled attribute (not class)
+        is_disabled_attr = slot.get_attribute('is-disabled')
+        is_disabled = is_disabled_attr == 'true' if is_disabled_attr else True
+        
+        if not is_disabled:  # Available slot
+            slot_data = {
+                'slot_id': slot.get_attribute('slot-id'),
+                'field_id': slot.get_attribute('field-id'),
+                'date': slot.get_attribute('date'),
+                'start_time': slot.get_attribute('start-time'),
+                'end_time': slot.get_attribute('end-time'),
+                'price': slot.get_attribute('price'),
+                'field_name': container.find_element(By.CSS_SELECTOR, "div.s18-500").text.strip()
+            }
+```
+
+## DEBUGGING APPROACH
+
+### 1. STATIC HTML ANALYSIS
+- Check for JavaScript templates in page source
+- Look for empty containers that get populated dynamically
+- Identify CSS selectors for target elements
+
+### 2. SELENIUM DEBUGGING
+- Wait for specific elements to appear
+- Log element counts and content
+- Handle timeouts gracefully
+
+### 3. ERROR HANDLING
+- Fallback mechanisms for failed requests
+- Graceful degradation when Selenium fails
+- Comprehensive logging for troubleshooting
+
+## PROJECT STRUCTURE
+
+```
+ayo-scrape/
+├── requirements.txt          # Dependencies (requests, beautifulsoup4, lxml, selenium)
+├── single_venue_scraper.py  # Enhanced scraper with Selenium support
+├── venue_scraper.py         # Main scraper with venue discovery
+├── venues_data.json         # Structured JSON output
+├── venues_output.txt        # Human-readable output
+└── venv/                   # Virtual environment
+```
+
+## KEY LEARNINGS
+
+### 1. JAVASCRIPT RENDERING
+- Many modern websites load content dynamically
+- Static HTML scraping insufficient for JavaScript-heavy sites
+- Selenium WebDriver essential for full content access
+
+### 2. URL ENCODING PITFALLS
+- Different websites expect different URL encoding formats
+- Manual query string construction sometimes necessary
+- Test URL formats with actual website behavior
+
+### 3. WAIT STRATEGIES
+- Dynamic content requires waiting for elements to load
+- Multiple wait strategies may be needed
+- Additional delays sometimes necessary for complete rendering
+
+### 4. ATTRIBUTE vs CLASS DETECTION
+- **Critical Learning**: Disabled state stored in attributes, not classes
+- **Wrong Approach**: Looking for `field-slot-item-disabled` in class name
+- **Correct Approach**: Check `is-disabled="true"` attribute value
+- **Impact**: This distinction is crucial for accurate data extraction
+
+### 5. NESTED ELEMENT SEARCHING
+- Time slots are nested within field containers
+- Must search within each field container individually
+- Field name association requires parent container context
+
+### 6. ERROR HANDLING
+- Robust error handling crucial for production use
+- Fallback mechanisms prevent complete failure
+- Comprehensive logging aids debugging
+
+## USAGE INSTRUCTIONS
+
+### 1. SETUP
+```bash
+pip install -r requirements.txt
+```
+
+### 2. CONFIGURATION
+Modify `CONFIG` dictionary in `venue_scraper.py`:
+- `max_venues_to_test`: Number of venues to process (0 = all)
+- `use_selenium`: Enable/disable Selenium
+- Search parameters: `sortby`, `cabor`, `lokasi`
+
+### 3. EXECUTION
+```bash
+python venue_scraper.py
+```
+
+### 4. OUTPUT
+- `venues_output.txt`: Human-readable results with time slots
+- `venues_data.json`: Structured JSON data with complete slot information
+
+### 5. SAMPLE OUTPUT
+```
+✅ Wins Arena - Kuningan | url -> https://ayo.co.id/v/wins-arena-kuningan | slot available -> 1 available fields
+    Field: Tennis Court - Mizone - 1 Jadwal Tersedia
+    Available time slots:
+      Tennis Court - Mizone: 2025-10-04 23:00-00:00 - Rp275000
+```
+
+## FUTURE ENHANCEMENTS
+
+### 1. PERFORMANCE OPTIMIZATION
+- Parallel processing for multiple venues
+- Caching mechanisms for repeated requests
+- Database storage for large datasets
+
+### 2. FEATURE ADDITIONS
+- Real-time monitoring of slot availability
+- Price tracking and alerts
+- Integration with booking systems
+
+### 3. ROBUSTNESS IMPROVEMENTS
+- Retry mechanisms for failed requests
+- Rate limiting to avoid blocking
+- Proxy rotation for large-scale scraping
+
+## CONCLUSION
+
+This project demonstrates a complete web scraping solution that handles both static and dynamic content. The key success factors were:
+
+1. **Understanding the target website's architecture**
+2. **Identifying JavaScript rendering requirements**
+3. **Implementing appropriate wait strategies**
+4. **Building robust error handling**
+5. **Creating a flexible, configurable system**
+
+The solution successfully extracts venue information, field availability, and time slot data from a JavaScript-heavy website, providing a solid foundation for further development and enhancement.
