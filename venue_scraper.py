@@ -619,54 +619,75 @@ class VenueScraper:
             time.sleep(2)
     
     def save_results(self, filename='venues_output.txt'):
-        """Save results to file"""
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(f"VENUE SCRAPING RESULTS\n")
-            f.write(f"=" * 50 + "\n\n")
-            f.write(f"Total venues found: {len(self.venues)}\n")
-            f.write(f"Total pages available: {self.get_total_pages(self.get_page_content(self.build_venues_url()))}\n\n")
-            f.write(f"VENUE LIST WITH SLOT INFO:\n")
-            f.write(f"-" * 30 + "\n")
-            
-            for i, venue in enumerate(self.venues, 1):
-                f.write(f"{i}. {venue['name']} | url -> {venue['url']} | slot available -> {venue.get('slot_status', 'Not checked')}\n")
-                
-                if venue.get('available_fields'):
-                    for field in venue['available_fields']:
-                        field_sport = field.get('field_sport_type', field.get('sport', 'Unknown'))
-                        f.write(f"   Field: {field['field_name']} ({field_sport}) - {field['slot_status']}\n")
-                        
-                        # Show available time slots for this field
-                        if field.get('time_slots'):
-                            f.write(f"     Available slots:\n")
-                            for slot in field['time_slots'][:8]:  # Show first 8 slots per field
-                                start_time = slot.get('start_time', 'N/A')
-                                end_time = slot.get('end_time', 'N/A')
-                                date = slot.get('date', 'N/A')
-                                price = slot.get('price', 'N/A')
-                                if isinstance(price, (int, float)) and price > 0:
-                                    price_str = f"Rp{price:,}"
-                                else:
-                                    price_str = str(price)
-                                f.write(f"       • {date} {start_time}-{end_time} ({price_str})\n")
-                
-                # Also show venue-level time slots (for backwards compatibility with Selenium mode)
-                if venue.get('time_slots'):
-                    f.write(f"   Available time slots:\n")
-                    for slot in venue['time_slots'][:10]:  # Show first 10 slots
-                        start_time = slot.get('start_time', 'N/A')
-                        end_time = slot.get('end_time', 'N/A')
-                        date = slot.get('date', 'N/A')
-                        price = slot.get('price', 'N/A')
-                        field_name = slot.get('field_name', 'Unknown Field')
-                        if isinstance(price, (int, float)) and price > 0:
-                            price_str = f"Rp{price:,}"
-                        else:
-                            price_str = str(price)
-                        f.write(f"     {field_name}: {date} {start_time}-{end_time} ({price_str})\n")
-                f.write(f"\n")
+        """Save results to file - only venues with available slots"""
+        # Filter venues that have available slots
+        venues_with_slots = [
+            v for v in self.venues 
+            if v.get('available_fields') or v.get('time_slots')
+        ]
         
-        print(f"Results saved to {filename}")
+        with open(filename, 'w', encoding='utf-8') as f:
+            # Format location for display
+            location_display = self.config.get('lokasi', 'All Locations')
+            if location_display == 'Kota+Jakarta+Selatan':
+                location_display = 'Kota Jakarta Selatan'
+            elif location_display.startswith('Kota+'):
+                location_display = location_display.replace('Kota+', 'Kota ').replace('+', ' ')
+            
+            # Create dynamic title with date and location
+            title = f"VENUE SCRAPING RESULTS FOR DATE {self.config.get('date', 'N/A')}"
+            if location_display != 'All Locations':
+                title += f" IN {location_display.upper()}"
+            
+            f.write(f"{title}\n")
+            f.write(f"=" * len(title) + "\n\n")
+            f.write(f"Total venues found: {len(self.venues)}\n")
+            f.write(f"Venues with available slots: {len(venues_with_slots)}\n")
+            f.write(f"Total pages available: {self.get_total_pages(self.get_page_content(self.build_venues_url()))}\n\n")
+            f.write(f"VENUES WITH AVAILABLE SLOT:\n")
+            f.write(f"=" * 42 + "\n")
+            
+            if not venues_with_slots:
+                f.write("No venues found with available slots for the specified criteria.\n")
+            else:
+                for i, venue in enumerate(venues_with_slots, 1):
+                    f.write(f"{i}. {venue['name']}\n")
+                    f.write(f"   URL: {venue['url']}\n")
+                    
+                    if venue.get('available_fields'):
+                        for field in venue['available_fields']:
+                            field_sport = field.get('field_sport_type', field.get('sport', 'Unknown'))
+                            f.write(f"   • {field['field_name']} ({field_sport}):\n")
+                            
+                            # Show available time slots for this field
+                            if field.get('time_slots'):
+                                for slot in field['time_slots'][:12]:  # Show first 12 slots per field
+                                    start_time = slot.get('start_time', 'N/A')
+                                    end_time = slot.get('end_time', 'N/A')
+                                    date = slot.get('date', 'N/A')
+                                    price = slot.get('price', 'N/A')
+                                    if isinstance(price, (int, float)) and price > 0:
+                                        price_str = f"Rp{price:,}"
+                                    else:
+                                        price_str = str(price)
+                                    f.write(f"     {date} {start_time}-{end_time} ({price_str})\n")
+                    
+                    # Also show venue-level time slots (for backwards compatibility with Selenium mode)
+                    if venue.get('time_slots'):
+                        for slot in venue['time_slots'][:10]:  # Show first 10 slots
+                            start_time = slot.get('start_time', 'N/A')
+                            end_time = slot.get('end_time', 'N/A')
+                            date = slot.get('date', 'N/A')
+                            price = slot.get('price', 'N/A')
+                            field_name = slot.get('field_name', 'Unknown Field')
+                            if isinstance(price, (int, float)) and price > 0:
+                                price_str = f"Rp{price:,}"
+                            else:
+                                price_str = str(price)
+                            f.write(f"   {field_name}: {date} {start_time}-{end_time} ({price_str})\n")
+                    f.write(f"\n")
+        
+        print(f"Results saved to {filename} (showing only venues with available slots)")
     
     def close(self):
         """Clean up resources"""

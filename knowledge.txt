@@ -639,42 +639,72 @@ python venue_scrape.py --dry-run
 
 ### ENHANCED OUTPUT FORMAT
 
+#### Dynamic Header
+The output includes a dynamic title that shows the specific date and location being queried: "VENUE SCRAPING RESULTS FOR DATE YYYY-MM-DD IN LOCATION". This clearly identifies the scope of the search results.
+
+#### Filtered Results
+The scraper now automatically filters out venues without available slots, showing only venues that have actual booking opportunities. This eliminates visual clutter and focuses on actionable information.
+
 #### Hierarchical Structure
 The output format organizes slot information hierarchically:
 
 ```
-1. Venue Name | url -> venue_url | slot available -> status
-   Field: Field Name (Sport Type) - X slots available
-     Available slots:
-       • date start_time-end_time (formatted_price)
-       • date start_time-end_time (formatted_price)
-       ...
-   Field: Another Field (Sport Type) - Y slots available
-     Available slots:
-       • date start_time-end_time (formatted_price)
-       ...
+VENUE SCRAPING RESULTS FOR DATE 2025-10-11 IN KOTA JAKARTA SELATAN
+==================================================================
+
+Total venues found: 20
+Venues with available slots: 14
+
+VENUES WITH AVAILABLE SLOTS:
+==========================================
+1. Venue Name
+   URL: venue_url
+   • Field Name (Sport Type):
+     date start_time-end_time (formatted_price)
+     date start_time-end_time (formatted_price)
+     ...
+2. Another Venue Name
+   URL: another_venue_url
+   • Field Name (Sport Type):
+     ...
 ```
 
 #### Output Features
+- **Dynamic Title**: Shows date and location being queried for context
+- **Filtered Results**: Only venues with available slots are shown (eliminates empty venues)
 - **Field-Level Organization**: Time slots grouped by field for clarity
 - **Time Format**: `HH:MM:SS-HH:MM:SS` format for precise timing
 - **Price Formatting**: Indonesian Rupiah with comma separators (Rp275,000)
 - **Date Display**: YYYY-MM-DD format for easy identification
-- **Slot Limiting**: Shows up to 8 slots per field to prevent overwhelming output
+- **Slot Limiting**: Shows up to 12 slots per field to prevent overwhelming output
+- **Clear Statistics**: Shows total venues found vs venues with available slots
 - **Backwards Compatibility**: Supports both API and Selenium data structures
 
 #### Example Output Format
 ```
-1. Wins Arena - Kuningan | url -> https://ayo.co.id/v/wins-arena-kuningan | slot available -> 2 available fields
-   Field: Tennis Court - Mizone (Tennis) - 6 slots available
-     Available slots:
-       • 2025-10-11 00:00:00-01:00:00 (Rp275,000)
-       • 2025-10-11 01:00:00-02:00:00 (Rp275,000)
-       • 2025-10-11 05:00:00-06:00:00 (Rp235,000)
-   Field: Tennis Court B - Grey (Tennis) - 18 slots available
-     Available slots:
-       • 2025-10-11 06:00:00-07:00:00 (Rp250,000)
-       • 2025-10-11 07:00:00-08:00:00 (Rp250,000)
+VENUE SCRAPING RESULTS FOR DATE 2025-10-11 IN KOTA JAKARTA SELATAN
+==================================================================
+
+Total venues found: 20
+Venues with available slots: 14
+
+VENUES WITH AVAILABLE SLOTS:
+==========================================
+1. Wins Arena - Kuningan
+   URL: https://ayo.co.id/v/wins-arena-kuningan
+   • Tennis Court - Mizone (Tennis):
+     2025-10-11 00:00:00-01:00:00 (Rp275,000)
+     2025-10-11 01:00:00-02:00:00 (Rp275,000)
+     2025-10-11 05:00:00-06:00:00 (Rp235,000)
+   • Tennis Court B - Grey (Tennis):
+     2025-10-11 06:00:00-07:00:00 (Rp250,000)
+     2025-10-11 07:00:00-08:00:00 (Rp250,000)
+
+2. Exploria Court  
+   URL: https://ayo.co.id/v/exploria-court
+   • Touch Tennis Court (Tennis):
+     2025-10-11 06:00:00-07:00:00 (Rp120,000)
+     2025-10-11 07:00:00-08:00:00 (Rp120,000)
 ```
 
 #### File Outputs
@@ -703,6 +733,8 @@ The solution successfully extracts venue information, field availability, and de
 ✅ **Detailed Time Slot Extraction**: Finds available slots with `is-disabled="false"`
 ✅ **Complete Slot Data**: Field name, date, start time, end time, and price
 ✅ **Enhanced Output Format**: Hierarchical display with slots organized by field
+✅ **Dynamic Title**: Shows date and location being queried for context
+✅ **Filtered Output**: Only shows venues with available slots (no empty venues)
 ✅ **Selenium Integration**: Handles JavaScript-rendered content
 ✅ **API Support**: Direct JSON API calls for faster slot data retrieval
 ✅ **Data Source Toggle**: Choose between API (fast) or Selenium (reliable)
