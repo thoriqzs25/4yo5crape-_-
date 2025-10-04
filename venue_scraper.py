@@ -211,7 +211,8 @@ class VenueScraper:
         """Initialize the single venue scraper if Selenium is enabled"""
         if self.config.get('use_selenium', False) and not self.single_venue_scraper:
             print("Initializing Selenium for venue detail scraping...")
-            self.single_venue_scraper = SingleVenueScraper(use_selenium=True)
+            cabor = self.config.get('cabor', 7)
+            self.single_venue_scraper = SingleVenueScraper(use_selenium=True, cabor=cabor)
     
     def scrape_venues(self, max_pages=5):
         """Scrape venues from multiple pages"""
@@ -294,7 +295,8 @@ class VenueScraper:
                     if result['available_fields'] > 0:
                         print(f"  ✅ {venue['name']} | url -> {venue['url']} | slot available -> {venue['slot_status']}")
                         for field in result['fields']:
-                            print(f"    Field: {field['field_name']} - {field['slot_status']}")
+                            field_sport = field.get('field_sport_type', field.get('sport', 'Unknown'))
+                            print(f"    Field: {field['field_name']} ({field_sport}) - {field['slot_status']}")
                         
                         # Show available time slots
                         if result['time_slots']:
@@ -341,7 +343,8 @@ class VenueScraper:
                 
                 if venue.get('available_fields'):
                     for field in venue['available_fields']:
-                        f.write(f"   Field: {field['field_name']} - {field['slot_status']}\n")
+                        field_sport = field.get('field_sport_type', field.get('sport', 'Unknown'))
+                        f.write(f"   Field: {field['field_name']} ({field_sport}) - {field['slot_status']}\n")
                 
                 # Show available time slots
                 if venue.get('time_slots'):

@@ -11,8 +11,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 class SingleVenueScraper:
-    def __init__(self, use_selenium=True):
+    def __init__(self, use_selenium=True, cabor=7):
         self.use_selenium = use_selenium
+        self.cabor = cabor
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -49,6 +50,16 @@ class SingleVenueScraper:
         except requests.RequestException as e:
             print(f"Error fetching {url}: {e}")
             return None
+    
+    def should_include_field(self, field_sport_type):
+        """Check if field should be included based on CABOR"""
+        # CABOR 7 = Tennis, CABOR 12 = Padel
+        if self.cabor == 7:  # Tennis only
+            return field_sport_type.lower() == 'tennis'
+        elif self.cabor == 12:  # Padel only
+            return field_sport_type.lower() == 'padel'
+        else:  # Other CABOR values - include all fields
+            return True
     
     def scrape_venue_with_selenium(self, venue_url, venue_name="Unknown Venue"):
         """Scrape venue using Selenium to handle JavaScript"""
@@ -96,8 +107,27 @@ class SingleVenueScraper:
                     field_name_div = container.find_element(By.CSS_SELECTOR, "div.s18-500")
                     field_name = field_name_div.text.strip()
                     
-                    # Get sport type
+                    # Get sport type from container attribute
                     sport = container.get_attribute('sport') or 'Unknown'
+                    
+                    # Check field_desc_point to determine sport type
+                    field_sport_type = 'Unknown'
+                    try:
+                        field_desc_point = container.find_element(By.CSS_SELECTOR, "div.field_desc_point")
+                        field_desc_content = field_desc_point.text.strip()
+                        
+                        # Check if it's tennis or padel based on content
+                        if 'tennis' in field_desc_content.lower():
+                            field_sport_type = 'Tennis'
+                        elif 'padel' in field_desc_content.lower():
+                            field_sport_type = 'Padel'
+                        else:
+                            # Fallback to checking the sport attribute
+                            field_sport_type = sport
+                            
+                    except Exception as e:
+                        print(f"    Could not determine field sport type: {e}")
+                        field_sport_type = sport
                     
                     # Find slot button in this container
                     slot_button = container.find_element(By.CSS_SELECTOR, "div.field_slot_btn")
@@ -108,50 +138,74 @@ class SingleVenueScraper:
                     slot_text_elem = slot_button.find_element(By.CSS_SELECTOR, "span.slot-available-text")
                     slot_status = slot_text_elem.text.strip()
                     
-                    field_info = {
-                        'field_name': field_name,
-                        'field_name_attr': field_name_attr,
-                        'field_id': field_id,
-                        'sport': sport,
-                        'slot_status': slot_status
-                    }
-                    fields.append(field_info)
-                    print(f"  Field {i+1}: {field_name} - {slot_status}")
+                    # Check if field should be included based on CABOR
+                    if self.should_include_field(field_sport_type):
+                        field_info = {
+                            'field_name': field_name,
+                            'field_name_attr': field_name_attr,
+                            'field_id': field_id,
+                            'sport': sport,
+                            'field_sport_type': field_sport_type,
+                            'slot_status': slot_status
+                        }
+                        fields.append(field_info)
+                        print(f"  Field {i+1}: {field_name} ({field_sport_type}) - {slot_status}")
+                    else:
+                        print(f"  Field {i+1}: {field_name} ({field_sport_type}) - EXCLUDED (CABOR {self.cabor})")
                     
                 except Exception as e:
                     print(f"  Error extracting field {i+1}: {e}")
             
-            # Extract time slots from within field containers
+            # Extract time slots from within field containers (only for included fields)
             time_slots = []
             print(f"Looking for time slots within field containers...")
             
             for i, container in enumerate(field_containers):
                 try:
-                    # Find slot items within this field container
-                    slot_items = container.find_elements(By.CSS_SELECTOR, "div.field-slot-item")
-                    print(f"  Field {i+1}: Found {len(slot_items)} slot items")
+                    # Get field sport type to check if it should be included
+                    field_sport_type = 'Unknown'
+                    try:
+                        field_desc_point = container.find_element(By.CSS_SELECTOR, "div.field_desc_point")
+                        field_desc_content = field_desc_point.text.strip()
+                        
+                        if 'tennis' in field_desc_content.lower():
+                            field_sport_type = 'Tennis'
+                        elif 'padel' in field_desc_content.lower():
+                            field_sport_type = 'Padel'
+                        else:
+                            field_sport_type = container.get_attribute('sport') or 'Unknown'
+                    except:
+                        field_sport_type = container.get_attribute('sport') or 'Unknown'
                     
-                    for slot in slot_items:
-                        try:
-                            # Check is-disabled attribute (not class)
-                            is_disabled_attr = slot.get_attribute('is-disabled')
-                            is_disabled = is_disabled_attr == 'true' if is_disabled_attr else True
-                            
-                            if not is_disabled:
-                                slot_data = {
-                                    'slot_id': slot.get_attribute('slot-id') or '',
-                                    'field_id': slot.get_attribute('field-id') or '',
-                                    'date': slot.get_attribute('date') or '',
-                                    'start_time': slot.get_attribute('start-time') or '',
-                                    'end_time': slot.get_attribute('end-time') or '',
-                                    'price': slot.get_attribute('price') or '',
-                                    'is_disabled': is_disabled,
-                                    'field_name': container.find_element(By.CSS_SELECTOR, "div.s18-500").text.strip()
-                                }
-                                time_slots.append(slot_data)
-                                print(f"    Available slot: {slot_data['date']} {slot_data['start_time']}-{slot_data['end_time']} - Rp{slot_data['price']}")
-                        except Exception as e:
-                            print(f"    Error extracting slot from field {i+1}: {e}")
+                    # Only process time slots for included fields
+                    if self.should_include_field(field_sport_type):
+                        # Find slot items within this field container
+                        slot_items = container.find_elements(By.CSS_SELECTOR, "div.field-slot-item")
+                        print(f"  Field {i+1}: Found {len(slot_items)} slot items")
+                        
+                        for slot in slot_items:
+                            try:
+                                # Check is-disabled attribute (not class)
+                                is_disabled_attr = slot.get_attribute('is-disabled')
+                                is_disabled = is_disabled_attr == 'true' if is_disabled_attr else True
+                                
+                                if not is_disabled:
+                                    slot_data = {
+                                        'slot_id': slot.get_attribute('slot-id') or '',
+                                        'field_id': slot.get_attribute('field-id') or '',
+                                        'date': slot.get_attribute('date') or '',
+                                        'start_time': slot.get_attribute('start-time') or '',
+                                        'end_time': slot.get_attribute('end-time') or '',
+                                        'price': slot.get_attribute('price') or '',
+                                        'is_disabled': is_disabled,
+                                        'field_name': container.find_element(By.CSS_SELECTOR, "div.s18-500").text.strip()
+                                    }
+                                    time_slots.append(slot_data)
+                                    print(f"    Available slot: {slot_data['date']} {slot_data['start_time']}-{slot_data['end_time']} - Rp{slot_data['price']}")
+                            except Exception as e:
+                                print(f"    Error extracting slot from field {i+1}: {e}")
+                    else:
+                        print(f"  Field {i+1}: Skipping time slots (EXCLUDED - CABOR {self.cabor})")
                             
                 except Exception as e:
                     print(f"  Error processing field container {i+1}: {e}")

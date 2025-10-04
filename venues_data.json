@@ -11,28 +11,8 @@
           "field_name_attr": "Tennis Court - Mizone",
           "field_id": "1743",
           "sport": "Tennis",
+          "field_sport_type": "Tennis",
           "slot_status": "1 Jadwal Tersedia"
-        },
-        {
-          "field_name": "Padel Court A - Ungu",
-          "field_name_attr": "Padel Court A - Ungu",
-          "field_id": "2082",
-          "sport": "Padel",
-          "slot_status": "Tidak tersedia"
-        },
-        {
-          "field_name": "Padel Court B - Hijau",
-          "field_name_attr": "Padel Court B - Hijau",
-          "field_id": "2083",
-          "sport": "Padel",
-          "slot_status": "Tidak tersedia"
-        },
-        {
-          "field_name": "Padel Court C - Kuning",
-          "field_name_attr": "Padel Court C - Kuning",
-          "field_id": "3071",
-          "sport": "Padel",
-          "slot_status": "Tidak tersedia"
         }
       ],
       "time_slots": [
@@ -47,112 +27,180 @@
           "field_name": "Tennis Court - Mizone"
         }
       ],
-      "total_fields": 4,
+      "total_fields": 1,
       "total_time_slots": 1
     },
     {
-      "name": "Ambassador Tennis",
-      "url": "https://ayo.co.id/v/ambassador-tennis",
-      "slot_status": "2 available fields",
+      "name": "Exploria Court",
+      "url": "https://ayo.co.id/v/exploria-court",
+      "slot_status": "1 available fields",
       "available_fields": [
         {
-          "field_name": "Ambassador 1",
-          "field_name_attr": "Ambassador 1",
-          "field_id": "1811",
+          "field_name": "Tennis Court",
+          "field_name_attr": "Tennis Court",
+          "field_id": "2059",
           "sport": "Tennis",
-          "slot_status": "1 Jadwal Tersedia"
-        },
-        {
-          "field_name": "Ambassador 2",
-          "field_name_attr": "Ambassador 2",
-          "field_id": "2061",
-          "sport": "Tennis",
-          "slot_status": "Tidak tersedia"
-        },
-        {
-          "field_name": "Ambassador 3",
-          "field_name_attr": "Ambassador 3",
-          "field_id": "2062",
-          "sport": "Tennis",
+          "field_sport_type": "Tennis",
           "slot_status": "1 Jadwal Tersedia"
         }
       ],
       "time_slots": [
         {
-          "slot_id": "27120769",
-          "field_id": "1811",
-          "date": "2025-10-04",
-          "start_time": "20:00",
-          "end_time": "21:00",
-          "price": "180000",
-          "is_disabled": false,
-          "field_name": "Ambassador 1"
-        },
-        {
-          "slot_id": "27114003",
-          "field_id": "2062",
+          "slot_id": "27124561",
+          "field_id": "2059",
           "date": "2025-10-04",
           "start_time": "21:00",
           "end_time": "22:00",
-          "price": "180000",
+          "price": "355000",
           "is_disabled": false,
-          "field_name": "Ambassador 3"
+          "field_name": "Tennis Court"
+        }
+      ],
+      "total_fields": 1,
+      "total_time_slots": 1
+    },
+    {
+      "name": "The Racquet Club ( TRC )",
+      "url": "https://ayo.co.id/v/the-racquet-club-trc",
+      "slot_status": "3 available fields",
+      "available_fields": [
+        {
+          "field_name": "Indoor 1",
+          "field_name_attr": "Indoor 1",
+          "field_id": "581",
+          "sport": "Tennis",
+          "field_sport_type": "Tennis",
+          "slot_status": "2 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Indoor 2",
+          "field_name_attr": "Indoor 2",
+          "field_id": "641",
+          "sport": "Tennis",
+          "field_sport_type": "Tennis",
+          "slot_status": "2 Jadwal Tersedia"
+        },
+        {
+          "field_name": "Indoor 3",
+          "field_name_attr": "Indoor 3",
+          "field_id": "693",
+          "sport": "Tennis",
+          "field_sport_type": "Tennis",
+          "slot_status": "2 Jadwal Tersedia"
+        }
+      ],
+      "time_slots": [
+        {
+          "slot_id": "34038671",
+          "field_id": "581",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "23:00",
+          "price": "330000",
+          "is_disabled": false,
+          "field_name": "Indoor 1"
+        },
+        {
+          "slot_id": "34038672",
+          "field_id": "581",
+          "date": "2025-10-04",
+          "start_time": "23:00",
+          "end_time": "00:00",
+          "price": "330000",
+          "is_disabled": false,
+          "field_name": "Indoor 1"
+        },
+        {
+          "slot_id": "34038645",
+          "field_id": "641",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "23:00",
+          "price": "330000",
+          "is_disabled": false,
+          "field_name": "Indoor 2"
+        },
+        {
+          "slot_id": "34038646",
+          "field_id": "641",
+          "date": "2025-10-04",
+          "start_time": "23:00",
+          "end_time": "00:00",
+          "price": "330000",
+          "is_disabled": false,
+          "field_name": "Indoor 2"
+        },
+        {
+          "slot_id": "34038679",
+          "field_id": "693",
+          "date": "2025-10-04",
+          "start_time": "22:00",
+          "end_time": "23:00",
+          "price": "330000",
+          "is_disabled": false,
+          "field_name": "Indoor 3"
+        },
+        {
+          "slot_id": "34038680",
+          "field_id": "693",
+          "date": "2025-10-04",
+          "start_time": "23:00",
+          "end_time": "00:00",
+          "price": "330000",
+          "is_disabled": false,
+          "field_name": "Indoor 3"
         }
       ],
       "total_fields": 3,
-      "total_time_slots": 2
+      "total_time_slots": 6
     },
     {
-      "name": "Urban Tennis & Padel",
-      "url": "https://ayo.co.id/v/urban-tennis-padel"
+      "name": "Bukit Pratama Tennis Court",
+      "url": "https://ayo.co.id/v/bukit-pratama-tennis-court"
     },
     {
-      "name": "Metro Margomulyo Tennis Indoor",
-      "url": "https://ayo.co.id/v/metro-margomulyo-tennis-indoor"
+      "name": "Foreground Racquet Simulator - Kemang",
+      "url": "https://ayo.co.id/v/foreground-racquet-simulator-kemang"
     },
     {
-      "name": "Wins Arena PG - Tennis",
-      "url": "https://ayo.co.id/v/wins-arena-pg-tennis"
+      "name": "Gilatennis kebayoran lama",
+      "url": "https://ayo.co.id/v/gilatennis-kebayoran-lama"
     },
     {
-      "name": "MXL Ground",
-      "url": "https://ayo.co.id/v/mxl-ground"
+      "name": "Patraland Tennis Court - Dukuh Patra",
+      "url": "https://ayo.co.id/v/patraland-tennis-court-dukuh-patra"
     },
     {
-      "name": "RacketGo Sunter",
-      "url": "https://ayo.co.id/v/racketgo-sunter"
+      "name": "The Sim Tennis Court Pondok Labu",
+      "url": "https://ayo.co.id/v/the-sim-tennis-court-pondok-labu"
     },
     {
-      "name": "Maison Tennis Playcourt - Bintaro",
-      "url": "https://ayo.co.id/v/maison-tennis-playcourt-bintaro"
+      "name": "Nara Tennis Court Jakarta",
+      "url": "https://ayo.co.id/v/nara-tennis-court-jakarta"
     },
     {
-      "name": "House Of Tennis Kedoya",
-      "url": "https://ayo.co.id/v/house-of-tennis-kedoya"
+      "name": "Orion Tennis Court",
+      "url": "https://ayo.co.id/v/orion-tennis-court"
     },
     {
-      "name": "Homeground Signature Pluit",
-      "url": "https://ayo.co.id/v/homeground-signature-pluit"
+      "name": "Patraland Tennis Court - Patra Kuningan",
+      "url": "https://ayo.co.id/v/patraland-tennis-court-patra-kuningan"
     },
     {
-      "name": "Vlocity Arena",
-      "url": "https://ayo.co.id/v/vlocity-arena"
+      "name": "Seba Court",
+      "url": "https://ayo.co.id/v/seba-court"
     },
     {
-      "name": "Tennis Matic Kedoya",
-      "url": "https://ayo.co.id/v/tennis-matic-kedoya"
+      "name": "Playcourt Tennis Litbang Pondok Labu",
+      "url": "https://ayo.co.id/v/playcourt-tennis-litbang-pondok-labu"
     },
     {
-      "name": "Anwa Tennis Club",
-      "url": "https://ayo.co.id/v/anwa-tennis-club"
+      "name": "Lapangan Tenis Girly",
+      "url": "https://ayo.co.id/v/lapangan-tenis-girly"
     },
     {
-      "name": "Anwa Racquet Club",
-      "url": "https://ayo.co.id/v/anwa-racquet-club"
-    },
-    {
-      "name": "Jubilee Tennis Court",
-      "url": "https://ayo.co.id/v/jubilee-tennis-court"
+      "name": "Buncit Indah Sports Club",
+      "url": "https://ayo.co.id/v/buncit-indah-sports-club"
     }
   ],
   "config_used": {
@@ -160,9 +208,9 @@
     "venues_path": "/venues",
     "sortby": 5,
     "tipe": "venue",
-    "lokasi": "",
+    "lokasi": "Kota+Jakarta+Selatan",
     "cabor": 7,
-    "max_venues_to_test": 2,
+    "max_venues_to_test": 3,
     "use_selenium": true,
     "max_pages": 1
   }
