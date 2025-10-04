@@ -32,11 +32,9 @@ def load_config():
         'max_pages': int(config.get('MAX_PAGES', os.getenv('MAX_PAGES', '1'))),  # Maximum number of pages to scrape
     }
 
-CONFIG = load_config()
-
 class VenueScraper:
     def __init__(self, config=None):
-        self.config = config or CONFIG
+        self.config = config or load_config()
         self.base_url = self.config['base_url']
         self.session = requests.Session()
         self.session.headers.update({
@@ -189,6 +187,87 @@ class VenueScraper:
             print(f"Error extracting total pages: {e}")
             return 1
     
+    def get_total_venues_count_with_selenium(self, url):
+        """Extract total venue count from count_drop class using Selenium"""
+        if not self.single_venue_scraper or not self.single_venue_scraper.driver:
+            print("⚠️  Selenium not available for count_drop extraction")
+            return None
+            
+        try:
+            print("🔍 Loading page with Selenium to get count_drop value...")
+            self.single_venue_scraper.driver.get(url)
+            
+            # Wait for count_drop to be populated
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            from selenium.webdriver.common.by import By
+            from selenium.common.exceptions import TimeoutException
+            
+            wait = WebDriverWait(self.single_venue_scraper.driver, 15)
+            
+            try:
+                # Wait for count_drop element to be present and have content
+                wait.until(lambda driver: 
+                    driver.find_element(By.CSS_SELECTOR, ".count_drop").get_attribute('innerHTML').strip() != ""
+                )
+                
+                # Now get the element
+                count_element = self.single_venue_scraper.driver.find_element(By.CSS_SELECTOR, ".count_drop")
+                count_text = count_element.get_attribute('innerHTML').strip()
+                print(f"📊 Found count_drop innerHTML with Selenium: '{count_text}'")
+                
+                # Extract number from text
+                import re
+                numbers = re.findall(r'\d+', count_text)
+                if numbers:
+                    total_count = int(numbers[0])
+                    print(f"✅ Total venues count: {total_count}")
+                    return total_count
+                else:
+                    print("⚠️  No numbers found in count_drop innerHTML")
+                    return None
+                    
+            except TimeoutException:
+                print("⚠️  Timeout waiting for count_drop to be populated")
+                # Try to get the element anyway to see what's there
+                try:
+                    count_element = self.single_venue_scraper.driver.find_element(By.CSS_SELECTOR, ".count_drop")
+                    print(f"📊 count_drop element found but empty: '{count_element.text}'")
+                    print(f"📊 count_drop innerHTML: '{count_element.get_attribute('innerHTML')}'")
+                except:
+                    print("📊 count_drop element not found at all")
+                return None
+                
+        except Exception as e:
+            print(f"Error extracting total venues count with Selenium: {e}")
+            return None
+
+    def get_total_venues_count(self, soup):
+        """Extract total venue count from count_drop class"""
+        try:
+            # Look for count_drop class
+            count_element = soup.find(class_='count_drop')
+            if not count_element:
+                return None
+            
+            # Extract the number from the text
+            count_text = count_element.get_text(strip=True)
+            
+            # Try to extract number from text (handle various formats)
+            import re
+            numbers = re.findall(r'\d+', count_text)
+            if numbers:
+                total_count = int(numbers[0])  # Take the first number found
+                print(f"✅ Total venues count: {total_count}")
+                return total_count
+            else:
+                # Element exists but is empty (JavaScript populated)
+                return None
+                
+        except Exception as e:
+            print(f"Error extracting total venues count: {e}")
+            return None
+    
     def build_venues_url(self, page=1):
         """Build URL with search parameters"""
         params = []
@@ -214,6 +293,86 @@ class VenueScraper:
             cabor = self.config.get('cabor', 7)
             self.single_venue_scraper = SingleVenueScraper(use_selenium=True, cabor=cabor)
     
+    def dry_run(self):
+        """Perform a dry run to show what would be scraped without actually scraping"""
+        print("=" * 60)
+        print("DRY RUN - Venue Scraping Preview")
+        print("=" * 60)
+        
+        # Build the URL for the first page
+        first_page_url = self.build_venues_url(page=1)
+        print(f"📋 Venues List URL: {first_page_url}")
+        
+        # Initialize single venue scraper if needed for count_drop extraction
+        self.initialize_single_venue_scraper()
+        
+        # Fetch first page to get pagination info
+        soup = self.get_page_content(first_page_url)
+        if not soup:
+            print("❌ Failed to fetch first page for dry run")
+            return
+        
+        # Get total pages
+        total_pages = self.get_total_pages(soup)
+        print(f"📄 Total pages available: {total_pages}")
+        
+        # Get actual total venue count from count_drop class
+        actual_total_venues = self.get_total_venues_count(soup)
+        
+        # If count_drop is empty (JavaScript populated), try with Selenium
+        if actual_total_venues is None and self.single_venue_scraper and self.single_venue_scraper.driver:
+            print("🔄 Trying to get count_drop with Selenium...")
+            actual_total_venues = self.get_total_venues_count_with_selenium(first_page_url)
+        
+        # Get venues from first page to estimate per page
+        venues_page_1 = self.extract_venue_info(soup)
+        venues_per_page = len(venues_page_1)
+        print(f"🏟️  Venues per page: {venues_per_page}")
+        
+        # Calculate what will be scraped
+        max_pages_config = self.config.get('max_pages', 1)
+        if max_pages_config == 0:
+            pages_to_scrape = total_pages
+            print(f"📊 Pages to scrape: ALL ({total_pages} pages)")
+        else:
+            pages_to_scrape = min(max_pages_config, total_pages)
+            print(f"📊 Pages to scrape: {pages_to_scrape} (limited by MAX_PAGES={max_pages_config})")
+        
+        # Use actual total if available, otherwise estimate
+        if actual_total_venues:
+            venues_to_scrape = min(actual_total_venues, pages_to_scrape * venues_per_page)
+            print(f"🎯 Total venues available: {actual_total_venues}")
+            print(f"🎯 Venues to scrape: {venues_to_scrape}")
+        else:
+            estimated_total_venues = pages_to_scrape * venues_per_page
+            print(f"🎯 Estimated total venues: {estimated_total_venues}")
+            venues_to_scrape = estimated_total_venues
+        
+        # Show venue processing limits
+        max_venues_to_test = self.config.get('max_venues_to_test', 0)
+        if max_venues_to_test == 0:
+            print(f"🔍 Venues to process: ALL ({venues_to_scrape})")
+        else:
+            print(f"🔍 Venues to process: {max_venues_to_test} (limited by MAX_VENUES_TO_TEST={max_venues_to_test})")
+        
+        # Show configuration summary
+        print(f"\n⚙️  Configuration Summary:")
+        print(f"   • Sport Category (CABOR): {self.config['cabor']} ({'Tennis' if self.config['cabor'] == 7 else 'Padel' if self.config['cabor'] == 12 else 'Other'})")
+        print(f"   • Location Filter: {self.config['lokasi'] or 'None'}")
+        print(f"   • Sort By: {self.config['sortby']}")
+        print(f"   • Use Selenium: {self.config.get('use_selenium', True)}")
+        
+        print("=" * 60)
+        return {
+            'total_pages': total_pages,
+            'pages_to_scrape': pages_to_scrape,
+            'venues_per_page': venues_per_page,
+            'actual_total_venues': actual_total_venues,
+            'venues_to_scrape': venues_to_scrape,
+            'venues_to_process': min(max_venues_to_test, venues_to_scrape) if max_venues_to_test > 0 else venues_to_scrape,
+            'url': first_page_url
+        }
+
     def scrape_venues(self, max_pages=5):
         """Scrape venues from multiple pages"""
         print(f"Starting to scrape venues from {self.base_url}")
@@ -241,7 +400,13 @@ class VenueScraper:
         print(f"Page 1: Found {len(venues_page_1)} venues")
         
         # Scrape additional pages (up to max_pages or total_pages)
-        pages_to_scrape = min(max_pages, total_pages)
+        # If max_pages is 0, scrape all pages
+        if max_pages == 0:
+            pages_to_scrape = total_pages
+        else:
+            pages_to_scrape = min(max_pages, total_pages)
+        
+        print(f"Will scrape {pages_to_scrape} pages total")
         
         for page_num in range(2, pages_to_scrape + 1):
             print(f"\nScraping page {page_num}...")
@@ -361,42 +526,44 @@ class VenueScraper:
             self.single_venue_scraper.close()
 
 def main():
-    # You can modify the CONFIG dictionary at the top of the file to change settings
-    # Or set environment variables in .env file
-    # Or create a custom config here:
-    # custom_config = {
-    #     'base_url': 'https://ayo.co.id',
-    #     'venues_path': '/venues',
-    #     'sortby': 5,  # Change this number as needed
-    #     'tipe': 'venue',  # Type filter
-    #     'lokasi': 'Kota+Jakarta+Selatan',  # Change location as needed
-    #     'cabor': 7   # Change this number as needed
-    # }
-    # scraper = VenueScraper(custom_config)
+    import sys
+    
+    # Check for dry run mode
+    dry_run_mode = '--dry-run' in sys.argv or '-d' in sys.argv
     
     scraper = VenueScraper()  # Uses CONFIG from environment variables or defaults
     
     try:
-        # Scrape venues from configured number of pages
-        max_pages = scraper.config.get('max_pages', 1)
-        scraper.scrape_venues(max_pages=max_pages)
-        
-        # Save results
-        scraper.save_results()
+        if dry_run_mode:
+            # Perform dry run
+            dry_run_info = scraper.dry_run()
+            if dry_run_info:
+                print(f"\n✅ Dry run completed successfully!")
+                if dry_run_info['actual_total_venues']:
+                    print(f"📊 Summary: {dry_run_info['pages_to_scrape']} pages, {dry_run_info['venues_to_scrape']} venues (total available: {dry_run_info['actual_total_venues']})")
+                else:
+                    print(f"📊 Summary: {dry_run_info['pages_to_scrape']} pages, ~{dry_run_info['venues_to_scrape']} venues")
+        else:
+            # Normal scraping
+            max_pages = scraper.config.get('max_pages', 1)
+            scraper.scrape_venues(max_pages=max_pages)
+            
+            # Save results
+            scraper.save_results()
+            
+            # Also save as JSON for structured data
+            with open('venues_data.json', 'w', encoding='utf-8') as f:
+                json.dump({
+                    'total_venues': len(scraper.venues),
+                    'venues': scraper.venues,
+                    'config_used': scraper.config
+                }, f, indent=2, ensure_ascii=False)
+            
+            print("Data also saved as JSON in venues_data.json")
+            print(f"Configuration used: {scraper.config}")
     finally:
         # Clean up resources
         scraper.close()
-    
-    # Also save as JSON for structured data
-    with open('venues_data.json', 'w', encoding='utf-8') as f:
-        json.dump({
-            'total_venues': len(scraper.venues),
-            'venues': scraper.venues,
-            'config_used': scraper.config
-        }, f, indent=2, ensure_ascii=False)
-    
-    print("Data also saved as JSON in venues_data.json")
-    print(f"Configuration used: {scraper.config}")
 
 if __name__ == "__main__":
     main()

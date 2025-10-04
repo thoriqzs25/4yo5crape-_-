@@ -112,7 +112,17 @@ CONFIG = {
 - **Efficient Processing**: Skips time slot extraction for excluded fields
 - **Clear Feedback**: Shows exclusion messages for filtered fields
 
-### 5. DATA EXTRACTION WORKFLOW
+### 5. DRY RUN FEATURE
+- **Preview Mode**: Shows what will be scraped without actually scraping
+- **Pagination Analysis**: Displays total pages available and pages to scrape
+- **Venue Count Detection**: Attempts to get actual venue count from `count_drop` class
+- **Selenium Fallback**: Uses Selenium to get JavaScript-populated count_drop values
+- **Venue Estimation**: Falls back to estimated total venues based on venues per page
+- **Configuration Summary**: Shows all current settings
+- **URL Preview**: Displays the exact URL that will be used
+- **Usage**: `python venue_scraper.py --dry-run` or `make dry-run`
+
+### 6. DATA EXTRACTION WORKFLOW
 1. **Venue Discovery**: Scrape venue list pages for venue names and URLs
 2. **Pagination Handling**: Determine total pages and scrape specified number
 3. **Venue Detail Scraping**: For each venue, visit detail page
@@ -233,6 +243,116 @@ else:
     print(f"Field {field_name} ({field_sport_type}) - EXCLUDED (CABOR {self.cabor})")
 ```
 
+### 7. DRY RUN IMPLEMENTATION
+```python
+def dry_run(self):
+    """Perform a dry run to show what would be scraped without actually scraping"""
+    print("=" * 60)
+    print("DRY RUN - Venue Scraping Preview")
+    print("=" * 60)
+    
+    # Build the URL for the first page
+    first_page_url = self.build_venues_url(page=1)
+    print(f"📋 Venues List URL: {first_page_url}")
+    
+    # Fetch first page to get pagination info
+    soup = self.get_page_content(first_page_url)
+    if not soup:
+        print("❌ Failed to fetch first page for dry run")
+        return
+    
+    # Get total pages
+    total_pages = self.get_total_pages(soup)
+    print(f"📄 Total pages available: {total_pages}")
+    
+    # Get venues from first page to estimate total
+    venues_page_1 = self.extract_venue_info(soup)
+    venues_per_page = len(venues_page_1)
+    print(f"🏟️  Venues per page: {venues_per_page}")
+    
+    # Calculate what will be scraped
+    max_pages_config = self.config.get('max_pages', 1)
+    if max_pages_config == 0:
+        pages_to_scrape = total_pages
+        print(f"📊 Pages to scrape: ALL ({total_pages} pages)")
+    else:
+        pages_to_scrape = min(max_pages_config, total_pages)
+        print(f"📊 Pages to scrape: {pages_to_scrape} (limited by MAX_PAGES={max_pages_config})")
+    
+    # Estimate total venues
+    estimated_total_venues = pages_to_scrape * venues_per_page
+    print(f"🎯 Estimated total venues: {estimated_total_venues}")
+    
+    return {
+        'total_pages': total_pages,
+        'pages_to_scrape': pages_to_scrape,
+        'venues_per_page': venues_per_page,
+        'estimated_total_venues': estimated_total_venues,
+        'url': first_page_url
+    }
+```
+
+### 8. PAGINATION FIX
+```python
+# Fixed pagination logic to handle MAX_PAGES=0 (scrape all pages)
+if max_pages == 0:
+    pages_to_scrape = total_pages
+else:
+    pages_to_scrape = min(max_pages, total_pages)
+
+print(f"Will scrape {pages_to_scrape} pages total")
+
+for page_num in range(2, pages_to_scrape + 1):
+    # Scrape each page...
+```
+
+### 9. COUNT_DROP IMPLEMENTATION
+```python
+def get_total_venues_count_with_selenium(self, url):
+    """Extract total venue count from count_drop class using Selenium"""
+    try:
+        self.single_venue_scraper.driver.get(url)
+        
+        # Wait for count_drop to be populated
+        wait = WebDriverWait(self.single_venue_scraper.driver, 15)
+        
+        try:
+            # Wait for count_drop element to have innerHTML content
+            wait.until(lambda driver: 
+                driver.find_element(By.CSS_SELECTOR, ".count_drop").get_attribute('innerHTML').strip() != ""
+            )
+            
+            # Now get the element
+            count_element = self.single_venue_scraper.driver.find_element(By.CSS_SELECTOR, ".count_drop")
+            count_text = count_element.get_attribute('innerHTML').strip()
+            
+            # Extract number from text
+            numbers = re.findall(r'\d+', count_text)
+            if numbers:
+                return int(numbers[0])
+                
+        except TimeoutException:
+            print("⚠️  Timeout waiting for count_drop to be populated")
+            return None
+            
+    except Exception as e:
+        print(f"Error extracting total venues count with Selenium: {e}")
+        return None
+```
+
+**JavaScript Source**: The `count_drop` element is populated by JavaScript:
+```javascript
+$(document).ready(function () {
+    $('.count_drop').html(111);
+});
+```
+
+**Key Points**:
+- The element is populated via `innerHTML`, not `textContent`
+- Must wait for JavaScript to execute after page load
+- Uses Selenium WebDriverWait to ensure content is loaded
+- Successfully extracts actual venue count (e.g., 111 venues)
+
 ## DEBUGGING APPROACH
 
 ### 1. STATIC HTML ANALYSIS
@@ -280,11 +400,21 @@ else:
 ayo-scrape/
 ├── requirements.txt          # Dependencies (requests, beautifulsoup4, lxml, selenium)
 ├── single_venue_scraper.py  # Enhanced scraper with Selenium support
-├── venue_scraper.py         # Main scraper with venue discovery
-├── venues_data.json         # Structured JSON output
-├── venues_output.txt        # Human-readable output
+├── venue_scraper.py         # Main scraper with venue discovery and dry run
+├── config.env               # Configuration file
+├── Makefile                 # Build automation (run, dry-run, setup)
+├── knowledge.txt            # This documentation
+├── venues_output.txt        # Output file (generated, gitignored)
+├── venues_data.json         # JSON output (generated, gitignored)
 └── venv/                   # Virtual environment
 ```
+
+## MAKEFILE TARGETS
+
+- **`make run`**: Run the full venue scraper
+- **`make dry-run`**: Preview what will be scraped without actually scraping
+- **`make setup`**: Create virtual environment and install dependencies
+- **`make help`**: Show available targets
 
 ## KEY LEARNINGS
 
