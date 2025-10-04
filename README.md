@@ -1,4 +1,9 @@
 ## AYO SLOTS UTOPIA
 How to run the script?
 
-```make setup && make run```
+Navigate to project dir and run these commands.
+
+```
+cp sample.env config.env
+make setup && make run
+```

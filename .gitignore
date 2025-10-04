@@ -2,3 +2,4 @@ __pycache__/
 venv/
 venues_output.txt
 venues_data.json
+config.env
