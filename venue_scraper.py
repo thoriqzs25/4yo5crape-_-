@@ -29,6 +29,8 @@ def load_config():
         'cabor': int(config.get('CABOR', os.getenv('CABOR', '7'))),
         'max_venues_to_test': int(config.get('MAX_VENUES_TO_TEST', os.getenv('MAX_VENUES_TO_TEST', '3'))),  # Number of venues to test with Selenium (set to 0 to test all)
         'use_selenium': config.get('USE_SELENIUM', os.getenv('USE_SELENIUM', 'True')).lower() == 'true',  # Set to False to use static scraping only
+        'use_api': config.get('USE_API', os.getenv('USE_API', 'False')).lower() == 'true',  # Set to True to use API for slot data
+        'date': config.get('DATE', os.getenv('DATE', '2025-01-15')),  # Date for API slot queries (YYYY-MM-DD format)
         'max_pages': int(config.get('MAX_PAGES', os.getenv('MAX_PAGES', '1'))),  # Maximum number of pages to scrape
     }
 
@@ -54,7 +56,7 @@ class VenueScraper:
             return None
     
     def extract_venue_info(self, soup):
-        """Extract venue names and URLs from venue-card-item divs"""
+        """Extract venue names, URLs, and venue_id from venue-card-item divs"""
         venue_info = []
         venue_cards = soup.find_all('div', class_='venue-card-item')
         
@@ -67,12 +69,25 @@ class VenueScraper:
             link_tag = card.select_one('a')
             venue_url = link_tag.get('href') if link_tag else None
             
+            # Extract venue_id from id attribute (format: venue-1006)
+            venue_id = None
+            card_id = card.get('id')
+            if card_id and card_id.startswith('venue-'):
+                try:
+                    venue_id = int(card_id.replace('venue-', ''))
+                except ValueError:
+                    pass
+            
             if venue_name and venue_url:
                 venue_info.append({
                     'name': venue_name,
-                    'url': venue_url
+                    'url': venue_url,
+                    'venue_id': venue_id
                 })
-                print(f"Found venue: {venue_name} -> {venue_url}")
+                if venue_id:
+                    print(f"Found venue: {venue_name} (ID: {venue_id}) -> {venue_url}")
+                else:
+                    print(f"Found venue: {venue_name} -> {venue_url}")
         
         return venue_info
     
@@ -119,6 +134,83 @@ class VenueScraper:
                 
         except Exception as e:
             print(f"  Error getting slot info: {e}")
+            return "Error", []
+    
+    def get_venue_slot_info_api(self, venue_id, venue_name):
+        """Get slot availability and time slots using API"""
+        try:
+            print(f"  Checking slots via API for: {venue_name} (ID: {venue_id})")
+            
+            if not venue_id:
+                print(f"    ⚠️  No venue_id found, skipping API call")
+                return "No venue_id", []
+            
+            # Build API URL
+            api_url = f"{self.base_url}/venues-ajax/op-times-and-fields?venue_id={venue_id}&date={self.config['date']}"
+            print(f"    🔗 API URL: {api_url}")
+            
+            # Make API request
+            response = self.session.get(api_url)
+            response.raise_for_status()
+            
+            # Parse JSON response
+            api_data = response.json()
+            
+            # Extract fields and slots
+            available_fields = []
+            
+            if 'fields' in api_data:
+                for field in api_data['fields']:
+                    field_id = field.get('field_id')
+                    field_name = field.get('field_name', 'Unknown Field')
+                    sport_id = field.get('sport_id')
+                    total_available_slots = field.get('total_available_slots', 0)
+                    slots = field.get('slots', [])
+                    
+                    print(f"    📊 Field: {field_name} (Sport ID: {sport_id}, Available: {total_available_slots})")
+                    
+                    # Apply CABOR filtering - only include fields matching the configured sport
+                    if sport_id != self.config['cabor']:
+                        print(f"    ⏭️  Skipping field (sport_id {sport_id} != {self.config['cabor']})")
+                        continue
+                    
+                    # Find available slots (is_available: 1)
+                    available_slots = []
+                    for slot in slots:
+                        if slot.get('is_available') == 1:
+                            slot_data = {
+                                'slot_id': slot.get('id'),
+                                'date': slot.get('date'),
+                                'start_time': slot.get('start_time'),
+                                'end_time': slot.get('end_time'),
+                                'price': slot.get('price', 0),
+                                'field_name': field_name
+                            }
+                            available_slots.append(slot_data)
+                    
+                    # Only include fields with available slots
+                    if available_slots:
+                        available_fields.append({
+                            'field_name': field_name,
+                            'field_id': field_id,
+                            'field_sport_type': 'Tennis' if sport_id == 7 else 'Padel' if sport_id == 12 else f'Sport_{sport_id}',
+                            'slot_status': f'{len(available_slots)} slots available',
+                            'time_slots': available_slots
+                        })
+                        print(f"    ✅ Available field: {field_name} - {len(available_slots)} slots")
+                    else:
+                        print(f"    ❌ No available slots for field: {field_name}")
+            
+            if available_fields:
+                return "Available", available_fields
+            else:
+                return "No available slots", []
+                
+        except requests.RequestException as e:
+            print(f"  API request error: {e}")
+            return "API Error", []
+        except Exception as e:
+            print(f"  Error processing API data: {e}")
             return "Error", []
     
     def get_field_time_slots(self, soup, field_id):
@@ -360,7 +452,14 @@ class VenueScraper:
         print(f"   • Sport Category (CABOR): {self.config['cabor']} ({'Tennis' if self.config['cabor'] == 7 else 'Padel' if self.config['cabor'] == 12 else 'Other'})")
         print(f"   • Location Filter: {self.config['lokasi'] or 'None'}")
         print(f"   • Sort By: {self.config['sortby']}")
-        print(f"   • Use Selenium: {self.config.get('use_selenium', True)}")
+        
+        # Show data source configuration
+        if self.config.get('use_api', False):
+            print(f"   • Slot Data Source: API (date: {self.config.get('date', 'N/A')})")
+        elif self.config.get('use_selenium', True):
+            print(f"   • Slot Data Source: Selenium (browser automation)")
+        else:
+            print(f"   • Slot Data Source: Static HTML parsing")
         
         print("=" * 60)
         return {
@@ -446,7 +545,33 @@ class VenueScraper:
         for i, venue in enumerate(venues_to_process, 1):
             print(f"\n[{i}/{len(venues_to_process)}] Processing: {venue['name']}")
             
-            if self.single_venue_scraper:
+            if self.config.get('use_api', False):
+                # Use API-based slot retrieval
+                slot_status, available_fields = self.get_venue_slot_info_api(venue.get('venue_id'), venue['name'])
+                if slot_status == "Available" and available_fields:
+                    venue['slot_status'] = f"{len(available_fields)} available fields"
+                    venue['available_fields'] = available_fields
+                    
+                    # Format the output as requested
+                    print(f"  ✅ {venue['name']} | url -> {venue['url']} | slot available -> {venue['slot_status']}")
+                    for field in available_fields:
+                        field_sport = field.get('field_sport_type', 'Unknown')
+                        print(f"    Field: {field['field_name']} ({field_sport}) - {field['slot_status']}")
+                    
+                    # Show available time slots
+                    if field.get('time_slots'):
+                        print(f"    Available time slots:")
+                        slot_count = 0
+                        for field in available_fields:
+                            for slot in field.get('time_slots', [])[:3]:  # Show first 3 slots per field
+                                if slot_count < 5:  # Limit total to 5 slots
+                                    print(f"      {slot['field_name']}: {slot['date']} {slot['start_time']}-{slot['end_time']} - Rp{slot['price']}")
+                                    slot_count += 1
+                else:
+                    venue['slot_status'] = slot_status
+                    print(f"  ❌ {venue['name']} | url -> {venue['url']} | slot available -> {slot_status}")
+                    
+            elif self.single_venue_scraper:
                 # Use Selenium-based scraping
                 result = self.single_venue_scraper.scrape_venue(venue['url'], venue['name'])
                 if result:
@@ -510,12 +635,35 @@ class VenueScraper:
                     for field in venue['available_fields']:
                         field_sport = field.get('field_sport_type', field.get('sport', 'Unknown'))
                         f.write(f"   Field: {field['field_name']} ({field_sport}) - {field['slot_status']}\n")
+                        
+                        # Show available time slots for this field
+                        if field.get('time_slots'):
+                            f.write(f"     Available slots:\n")
+                            for slot in field['time_slots'][:8]:  # Show first 8 slots per field
+                                start_time = slot.get('start_time', 'N/A')
+                                end_time = slot.get('end_time', 'N/A')
+                                date = slot.get('date', 'N/A')
+                                price = slot.get('price', 'N/A')
+                                if isinstance(price, (int, float)) and price > 0:
+                                    price_str = f"Rp{price:,}"
+                                else:
+                                    price_str = str(price)
+                                f.write(f"       • {date} {start_time}-{end_time} ({price_str})\n")
                 
-                # Show available time slots
+                # Also show venue-level time slots (for backwards compatibility with Selenium mode)
                 if venue.get('time_slots'):
                     f.write(f"   Available time slots:\n")
                     for slot in venue['time_slots'][:10]:  # Show first 10 slots
-                        f.write(f"     {slot['field_name']}: {slot['date']} {slot['start_time']}-{slot['end_time']} - Rp{slot['price']}\n")
+                        start_time = slot.get('start_time', 'N/A')
+                        end_time = slot.get('end_time', 'N/A')
+                        date = slot.get('date', 'N/A')
+                        price = slot.get('price', 'N/A')
+                        field_name = slot.get('field_name', 'Unknown Field')
+                        if isinstance(price, (int, float)) and price > 0:
+                            price_str = f"Rp{price:,}"
+                        else:
+                            price_str = str(price)
+                        f.write(f"     {field_name}: {date} {start_time}-{end_time} ({price_str})\n")
                 f.write(f"\n")
         
         print(f"Results saved to {filename}")

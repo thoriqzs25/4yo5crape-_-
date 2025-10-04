@@ -514,6 +514,174 @@ Time slots must be searched within their parent field containers:
 - Additional delay for complete field rendering
 - Handle dynamic content loading gracefully
 
+## API SUPPORT IMPLEMENTATION
+
+### OVERVIEW
+As an alternative to Selenium scraping, the scraper now supports direct API calls to fetch slot availability data. This approach is faster and more reliable than browser automation.
+
+### API ENDPOINT DISCOVERY
+- **API URL**: `https://ayo.co.id/venues-ajax/op-times-and-fields`
+- **Parameters**: `venue_id={id}&date={YYYY-MM-DD}`
+- **Response Format**: JSON with `op_time` and `fields` array
+
+### API RESPONSE STRUCTURE
+```json
+{
+    "op_time": {
+        "day": "Minggu",
+        "dow": 0,
+        "is_open": true,
+        "hours": [{"open": "00:00", "close": "01:00"}, ...]
+    },
+    "fields": [
+        {
+            "field_id": 1743,
+            "field_name": "Tennis Court - Mizone",
+            "sport_id": 7,
+            "total_available_slots": 5,
+            "special_notes": null,
+            "slots": [
+                {
+                    "id": 34243297,
+                    "start_time": "00:00:00",
+                    "end_time": "01:00:00",
+                    "price": 275000,
+                    "date": "2025-10-05",
+                    "is_available": 1,
+                    ...
+                }
+            ]
+        }
+    ]
+}
+```
+
+### CONFIGURATION OPTIONS
+
+#### New Config Parameters
+- **USE_API**: `True/False` - Enable API mode instead of Selenium
+- **DATE**: `YYYY-MM-DD` - Target date for slot queries
+- **VENUE_ID**: Extracted from HTML `id="venue-{id}"` attribute
+
+#### Configuration Hierarchy
+1. **API Mode** (`USE_API=True`): Direct JSON API calls
+2. **Selenium Mode** (`USE_SELENIUM=True`): Browser automation
+3. **Static Mode** (`USE_SELENIUM=False`): HTML parsing only
+
+### CBOR FILTERING WITH API
+- **sport_id**: 7 = Tennis, 12 = Padel
+- **Filtering**: Only process fields matching `config['cabor']` value
+- **Automatic Detection**: Sport type identification from API data
+
+### IMPLEMENTATION BENEFITS
+
+#### Performance Advantages
+- **Speed**: No browser overhead, direct HTTP requests
+- **Reliability**: No JavaScript execution failures
+- **Scalability**: Can process many venues quickly
+- **Resource Usage**: Minimal system requirements
+
+#### Data Quality
+- **Structured Data**: Clean JSON response format
+- **Complete Information**: All slot details in single request
+- **Accuracy**: Server-side data, no parsing errors
+- **Consistency**: Uniform data format across all venues
+
+### API vs SELENIUM COMPARISON
+
+| Aspect | API Mode | Selenium Mode |
+|--------|----------|---------------|
+| **Speed** | ⚡ Fast (HTTP requests) | 🐌 Slow (browser automation) |
+| **Reliability** | ✅ High (direct JSON) | ⚠️ Variable (JS rendering) |
+| **Resource Usage** | 💚 Low (no browser) | 🔴 High (full browser) |
+| **Data Accuracy** | ✅ Perfect (server data) | ⚠️ Depends on rendering |
+| **Maintenance** | ✅ Stable (API contracts) | 🔶 Browser compatibility issues |
+
+### USAGE EXAMPLES
+
+#### Enable API Mode
+```bash
+# config.env
+USE_API=True
+USE_SELENIUM=False
+DATE=2025-01-15
+MAX_VENUES_TO_TEST=5
+```
+
+#### Switch Between Modes
+```bash
+# API Mode
+source venv/bin/activate && source config.env && python venue_scrape.py
+
+# Selenium Mode  
+# Change config: USE_API=False, USE_SELENIUM=True
+
+# Dry Run Preview
+python venue_scrape.py --dry-run
+```
+
+### TECHNICAL IMPLEMENTATION
+
+#### Venue ID Extraction
+- **Source**: HTML venue card `id="venue-{id}"` attribute
+- **Processing**: Parse integer from `venue-` prefix
+- **Validation**: Ensure venue_id exists before API call
+
+#### Error Handling
+- **Missing venue_id**: Skip venue with warning
+- **API Failures**: Graceful fallback with error messages
+- **Invalid JSON**: Handle malformed responses
+
+#### Filtering Logic
+- **Sport Category**: Only include fields with matching `sport_id`
+- **Available Slots**: Filter slots with `is_available: 1`
+- **Date Matching**: Query specific date as configured
+
+### ENHANCED OUTPUT FORMAT
+
+#### Hierarchical Structure
+The output format organizes slot information hierarchically:
+
+```
+1. Venue Name | url -> venue_url | slot available -> status
+   Field: Field Name (Sport Type) - X slots available
+     Available slots:
+       • date start_time-end_time (formatted_price)
+       • date start_time-end_time (formatted_price)
+       ...
+   Field: Another Field (Sport Type) - Y slots available
+     Available slots:
+       • date start_time-end_time (formatted_price)
+       ...
+```
+
+#### Output Features
+- **Field-Level Organization**: Time slots grouped by field for clarity
+- **Time Format**: `HH:MM:SS-HH:MM:SS` format for precise timing
+- **Price Formatting**: Indonesian Rupiah with comma separators (Rp275,000)
+- **Date Display**: YYYY-MM-DD format for easy identification
+- **Slot Limiting**: Shows up to 8 slots per field to prevent overwhelming output
+- **Backwards Compatibility**: Supports both API and Selenium data structures
+
+#### Example Output Format
+```
+1. Wins Arena - Kuningan | url -> https://ayo.co.id/v/wins-arena-kuningan | slot available -> 2 available fields
+   Field: Tennis Court - Mizone (Tennis) - 6 slots available
+     Available slots:
+       • 2025-10-11 00:00:00-01:00:00 (Rp275,000)
+       • 2025-10-11 01:00:00-02:00:00 (Rp275,000)
+       • 2025-10-11 05:00:00-06:00:00 (Rp235,000)
+   Field: Tennis Court B - Grey (Tennis) - 18 slots available
+     Available slots:
+       • 2025-10-11 06:00:00-07:00:00 (Rp250,000)
+       • 2025-10-11 07:00:00-08:00:00 (Rp250,000)
+```
+
+#### File Outputs
+- **venues_output.txt**: Human-readable hierarchical format
+- **venues_data.json**: Structured JSON for programmatic access
+- **Console Output**: Real-time processing with progress indicators
+
 ## CONCLUSION
 
 This project demonstrates a complete web scraping solution that handles both static and dynamic content. The key success factors were:
@@ -531,9 +699,17 @@ The solution successfully extracts venue information, field availability, and de
 ## FINAL WORKING FEATURES
 
 ✅ **Venue Discovery**: Scrapes venue list pages with pagination
-✅ **Field Information**: Extracts field names, IDs, and availability status
-✅ **Time Slot Extraction**: Finds available slots with `is-disabled="false"`
-✅ **Complete Data**: Field name, date, start time, end time, and price
+✅ **Field Information**: Extracts field names, IDs, and availability status  
+✅ **Detailed Time Slot Extraction**: Finds available slots with `is-disabled="false"`
+✅ **Complete Slot Data**: Field name, date, start time, end time, and price
+✅ **Enhanced Output Format**: Hierarchical display with slots organized by field
 ✅ **Selenium Integration**: Handles JavaScript-rendered content
+✅ **API Support**: Direct JSON API calls for faster slot data retrieval
+✅ **Data Source Toggle**: Choose between API (fast) or Selenium (reliable)
+✅ **CABOR Filtering**: Automatic sport type filtering (Tennis/Padel)
+✅ **Date Configuration**: Configurable target dates for API queries
+✅ **Venue ID Extraction**: Automatic venue ID parsing from HTML
 ✅ **Error Handling**: Robust fallback mechanisms
-✅ **Configurable**: Easy to modify search parameters and limits
+✅ **Dry Run Mode**: Preview what will be scraped before execution
+✅ **Configuration Management**: Environment-based config with defaults
+✅ **Multiple Output Formats**: Text and JSON output files
