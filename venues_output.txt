@@ -22,27 +22,7 @@ VENUE LIST WITH SLOT INFO:
      Ambassador 1: 2025-10-04 20:00-21:00 - Rp180000
      Ambassador 3: 2025-10-04 21:00-22:00 - Rp180000
 
-3. Urban Tennis & Padel | url -> https://ayo.co.id/v/urban-tennis-padel | slot available -> 9 available fields
-   Field: Padel A - 1 Jadwal Tersedia
-   Field: Padel B - 1 Jadwal Tersedia
-   Field: Padel C - 1 Jadwal Tersedia
-   Field: Padel D - 1 Jadwal Tersedia
-   Field: Padel E - 1 Jadwal Tersedia
-   Field: Padel F - 1 Jadwal Tersedia
-   Field: Tennis 1 - 2 Jadwal Tersedia
-   Field: Tennis 2 - 2 Jadwal Tersedia
-   Field: Tennis 3 - 2 Jadwal Tersedia
-   Available time slots:
-     Padel A: 2025-10-04 22:00-00:00 - Rp1000000
-     Padel B: 2025-10-04 22:00-00:00 - Rp1000000
-     Padel C: 2025-10-04 22:00-00:00 - Rp1000000
-     Padel D: 2025-10-04 22:00-00:00 - Rp1000000
-     Padel E: 2025-10-04 22:00-00:00 - Rp1000000
-     Padel F: 2025-10-04 22:00-00:00 - Rp1000000
-     Tennis 1: 2025-10-04 22:00-23:00 - Rp350000
-     Tennis 1: 2025-10-04 23:00-00:00 - Rp350000
-     Tennis 2: 2025-10-04 22:00-23:00 - Rp350000
-     Tennis 2: 2025-10-04 23:00-00:00 - Rp350000
+3. Urban Tennis & Padel | url -> https://ayo.co.id/v/urban-tennis-padel | slot available -> Not checked
 
 4. Metro Margomulyo Tennis Indoor | url -> https://ayo.co.id/v/metro-margomulyo-tennis-indoor | slot available -> Not checked
 

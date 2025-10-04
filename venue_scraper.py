@@ -2,20 +2,37 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import json
+import os
 from urllib.parse import urljoin, urlencode
 from single_venue_scraper import SingleVenueScraper
 
-# Configuration - Modify these values as needed
-CONFIG = {
-    'base_url': 'https://ayo.co.id',
-    'venues_path': '/venues',
-    'sortby': 5,
-    'tipe': 'venue',
-    'lokasi': '',  # Leave empty to disable location filter
-    'cabor': 7,
-    'max_venues_to_test': 3,  # Number of venues to test with Selenium (set to 0 to test all)
-    'use_selenium': True  # Set to False to use static scraping only
-}
+def load_config():
+    """Load configuration from config.env file or environment variables"""
+    config = {}
+    
+    # Try to load from config.env file
+    if os.path.exists('config.env'):
+        with open('config.env', 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    config[key.strip()] = value.strip()
+    
+    # Configuration with defaults
+    return {
+        'base_url': config.get('BASE_URL', os.getenv('BASE_URL', 'https://ayo.co.id')),
+        'venues_path': config.get('VENUES_PATH', os.getenv('VENUES_PATH', '/venues')),
+        'sortby': int(config.get('SORTBY', os.getenv('SORTBY', '5'))),
+        'tipe': config.get('TIPE', os.getenv('TIPE', 'venue')),
+        'lokasi': config.get('LOKASI', os.getenv('LOKASI', '')),  # Leave empty to disable location filter
+        'cabor': int(config.get('CABOR', os.getenv('CABOR', '7'))),
+        'max_venues_to_test': int(config.get('MAX_VENUES_TO_TEST', os.getenv('MAX_VENUES_TO_TEST', '3'))),  # Number of venues to test with Selenium (set to 0 to test all)
+        'use_selenium': config.get('USE_SELENIUM', os.getenv('USE_SELENIUM', 'True')).lower() == 'true',  # Set to False to use static scraping only
+        'max_pages': int(config.get('MAX_PAGES', os.getenv('MAX_PAGES', '1'))),  # Maximum number of pages to scrape
+    }
+
+CONFIG = load_config()
 
 class VenueScraper:
     def __init__(self, config=None):
@@ -342,6 +359,7 @@ class VenueScraper:
 
 def main():
     # You can modify the CONFIG dictionary at the top of the file to change settings
+    # Or set environment variables in .env file
     # Or create a custom config here:
     # custom_config = {
     #     'base_url': 'https://ayo.co.id',
@@ -353,11 +371,12 @@ def main():
     # }
     # scraper = VenueScraper(custom_config)
     
-    scraper = VenueScraper()  # Uses CONFIG from top of file
+    scraper = VenueScraper()  # Uses CONFIG from environment variables or defaults
     
     try:
-        # Scrape venues from 1 page for testing
-        scraper.scrape_venues(max_pages=1)
+        # Scrape venues from configured number of pages
+        max_pages = scraper.config.get('max_pages', 1)
+        scraper.scrape_venues(max_pages=max_pages)
         
         # Save results
         scraper.save_results()
