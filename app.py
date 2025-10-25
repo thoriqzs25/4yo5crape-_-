@@ -208,7 +208,9 @@ def scrape():
             'use_selenium': False,  # Always use API mode (faster and more reliable)
             'use_api': True,  # Always use API mode
             'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
-            'max_pages': int(data.get('max_pages', 1))
+            'max_pages': int(data.get('max_pages', 1)),
+            'start_time': data.get('start_time', ''),  # Optional start time filter (HH:MM format)
+            'end_time': data.get('end_time', '')  # Optional end time filter (HH:MM format)
         }
 
         # Update rate limit for this IP

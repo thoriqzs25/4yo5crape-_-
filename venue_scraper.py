@@ -32,6 +32,8 @@ def load_config():
         'use_api': config.get('USE_API', os.getenv('USE_API', 'False')).lower() == 'true',  # Set to True to use API for slot data
         'date': config.get('DATE', os.getenv('DATE', '2025-01-15')),  # Date for API slot queries (YYYY-MM-DD format)
         'max_pages': int(config.get('MAX_PAGES', os.getenv('MAX_PAGES', '1'))),  # Maximum number of pages to scrape
+        'start_time': config.get('START_TIME', os.getenv('START_TIME', '')),  # Start time filter (HH:MM format, leave empty to disable)
+        'end_time': config.get('END_TIME', os.getenv('END_TIME', '')),  # End time filter (HH:MM format, leave empty to disable)
     }
 
 class VenueScraper:
@@ -44,7 +46,47 @@ class VenueScraper:
         })
         self.venues = []
         self.single_venue_scraper = None
-    
+
+    def is_slot_within_time_range(self, slot_start_time):
+        """Check if a slot's start time is within the configured time range (inclusive)"""
+        start_filter = self.config.get('start_time', '').strip()
+        end_filter = self.config.get('end_time', '').strip()
+
+        # If no time filters are set, include all slots
+        if not start_filter and not end_filter:
+            return True
+
+        # If slot doesn't have a start time, exclude it
+        if not slot_start_time:
+            return False
+
+        try:
+            # Convert times to minutes since midnight for easier comparison
+            def time_to_minutes(time_str):
+                """Convert HH:MM to minutes since midnight"""
+                parts = time_str.split(':')
+                return int(parts[0]) * 60 + int(parts[1])
+
+            slot_minutes = time_to_minutes(slot_start_time)
+
+            # Apply start time filter if set (>=)
+            if start_filter:
+                start_minutes = time_to_minutes(start_filter)
+                if slot_minutes < start_minutes:
+                    return False
+
+            # Apply end time filter if set (<=)
+            if end_filter:
+                end_minutes = time_to_minutes(end_filter)
+                if slot_minutes > end_minutes:
+                    return False
+
+            return True
+
+        except (ValueError, IndexError):
+            # If time parsing fails, exclude the slot
+            return False
+
     def get_page_content(self, url):
         """Fetch page content with error handling"""
         try:
@@ -174,19 +216,22 @@ class VenueScraper:
                         print(f"    ⏭️  Skipping field (sport_id {sport_id} != {self.config['cabor']})")
                         continue
                     
-                    # Find available slots (is_available: 1)
+                    # Find available slots (is_available: 1) and apply time filtering
                     available_slots = []
                     for slot in slots:
                         if slot.get('is_available') == 1:
-                            slot_data = {
-                                'slot_id': slot.get('id'),
-                                'date': slot.get('date'),
-                                'start_time': slot.get('start_time'),
-                                'end_time': slot.get('end_time'),
-                                'price': slot.get('price', 0),
-                                'field_name': field_name
-                            }
-                            available_slots.append(slot_data)
+                            slot_start_time = slot.get('start_time')
+                            # Apply time range filter
+                            if self.is_slot_within_time_range(slot_start_time):
+                                slot_data = {
+                                    'slot_id': slot.get('id'),
+                                    'date': slot.get('date'),
+                                    'start_time': slot_start_time,
+                                    'end_time': slot.get('end_time'),
+                                    'price': slot.get('price', 0),
+                                    'field_name': field_name
+                                }
+                                available_slots.append(slot_data)
                     
                     # Only include fields with available slots
                     if available_slots:
@@ -214,25 +259,28 @@ class VenueScraper:
             return "Error", []
     
     def get_field_time_slots(self, soup, field_id):
-        """Get available time slots for a specific field"""
+        """Get available time slots for a specific field with time filtering"""
         time_slots = []
-        
+
         # Find field-slot-item elements that are not disabled and match the field_id
         slot_items = soup.find_all('div', class_='field-slot-item')
-        
+
         for slot in slot_items:
             # Check if this slot is not disabled and matches the field_id
-            if ('field-slot-item-disabled' not in slot.get('class', []) and 
+            if ('field-slot-item-disabled' not in slot.get('class', []) and
                 slot.get('field-id') == field_id):
-                slot_data = {
-                    'date': slot.get('date', ''),
-                    'start_time': slot.get('start-time', ''),
-                    'end_time': slot.get('end-time', ''),
-                    'price': slot.get('price', ''),
-                    'slot_id': slot.get('slot-id', '')
-                }
-                time_slots.append(slot_data)
-        
+                start_time = slot.get('start-time', '')
+                # Apply time range filter
+                if self.is_slot_within_time_range(start_time):
+                    slot_data = {
+                        'date': slot.get('date', ''),
+                        'start_time': start_time,
+                        'end_time': slot.get('end-time', ''),
+                        'price': slot.get('price', ''),
+                        'slot_id': slot.get('slot-id', '')
+                    }
+                    time_slots.append(slot_data)
+
         return time_slots
     
     def get_total_pages(self, soup):
