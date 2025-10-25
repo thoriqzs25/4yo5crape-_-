@@ -1,0 +1,15 @@
+# Replit configuration for one-click deployment
+
+language = "python3"
+run = "python app.py"
+
+[nix]
+channel = "stable-22_11"
+
+[deployment]
+run = ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT:-5000}"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
