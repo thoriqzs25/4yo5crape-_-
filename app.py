@@ -210,7 +210,8 @@ def scrape():
             'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
             'max_pages': int(data.get('max_pages', 1)),
             'start_time': data.get('start_time', ''),  # Optional start time filter (HH:MM format)
-            'end_time': data.get('end_time', '')  # Optional end time filter (HH:MM format)
+            'end_time': data.get('end_time', ''),  # Optional end time filter (HH:MM format)
+            'cheapest_first': data.get('cheapest_first', False)  # Sort results by cheapest first
         }
 
         # Update rate limit for this IP
@@ -319,8 +320,65 @@ def generate_output_text(venues_data, config):
     output.append(f"Location: {config['lokasi'] or 'All Locations'}")
     output.append(f"Sport: {'Tennis' if config['cabor'] == 7 else 'Padel' if config['cabor'] == 12 else config['cabor']}")
     output.append(f"Total venues found: {len(venues_data)}")
+    if config.get('cheapest_first'):
+        output.append(f"Sorted by: Cheapest First")
     output.append("=" * 80)
     output.append("")
+
+    # If cheapest_first is enabled, collect and sort all slots by price
+    if config.get('cheapest_first'):
+        all_slots = []
+        for venue in venues_data:
+            venue_name = venue['name']
+            venue_url = venue['url']
+
+            # Collect slots from available_fields
+            if 'available_fields' in venue and venue['available_fields']:
+                for field in venue['available_fields']:
+                    field_name = field.get('field_name', 'Unknown Field')
+                    if field.get('time_slots'):
+                        for slot in field['time_slots']:
+                            all_slots.append({
+                                'venue_name': venue_name,
+                                'venue_url': venue_url,
+                                'field_name': field_name,
+                                'start_time': slot.get('start_time', 'N/A'),
+                                'end_time': slot.get('end_time', 'N/A'),
+                                'price': slot.get('price', 0)
+                            })
+            # Collect slots from time_slots (fallback)
+            elif 'time_slots' in venue and venue['time_slots']:
+                if isinstance(venue['time_slots'][0], dict):
+                    for slot in venue['time_slots']:
+                        all_slots.append({
+                            'venue_name': venue_name,
+                            'venue_url': venue_url,
+                            'field_name': slot.get('field_name', 'Unknown'),
+                            'start_time': slot.get('start_time', 'N/A'),
+                            'end_time': slot.get('end_time', 'N/A'),
+                            'price': slot.get('price', 0)
+                        })
+
+        # Sort slots by price (ascending)
+        all_slots.sort(key=lambda x: int(x['price']) if x['price'] and str(x['price']).isdigit() else float('inf'))
+
+        # Display sorted slots
+        for i, slot in enumerate(all_slots, 1):
+            price = slot['price']
+            if price and price != 'N/A':
+                try:
+                    price_formatted = f"Rp {int(price):,}"
+                except:
+                    price_formatted = str(price)
+            else:
+                price_formatted = 'Price not available'
+
+            output.append(f"{i}. {slot['venue_name']} - {slot['field_name']}")
+            output.append(f"   Time: {slot['start_time']} - {slot['end_time']}  |  {price_formatted}")
+            output.append(f"   URL: {slot['venue_url']}")
+            output.append("")
+
+        return "\n".join(output)
 
     for i, venue in enumerate(venues_data, 1):
         output.append(f"{i}. {venue['name']}")

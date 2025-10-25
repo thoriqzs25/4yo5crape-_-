@@ -282,6 +282,38 @@
             color: white;
         }
 
+        .selected-cities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+            min-height: 20px;
+        }
+
+        .city-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #667eea;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .city-chip-remove {
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .city-chip-remove:hover {
+            opacity: 1;
+        }
+
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
@@ -618,12 +650,13 @@
                 <form id="scraperForm">
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                         <div class="form-group">
-                            <label for="lokasi">Location</label>
+                            <label for="lokasi">Locations (Multi-select)</label>
+                            <div id="selectedCitiesContainer" class="selected-cities"></div>
                             <div class="autocomplete-container">
-                                <input type="text" id="lokasi" name="lokasi" placeholder="Start typing city name..." autocomplete="off">
+                                <input type="text" id="lokasi" name="lokasi" placeholder="Start typing to add cities..." autocomplete="off">
                                 <div class="autocomplete-suggestions" id="citySuggestions"></div>
                             </div>
-                            <small>Start typing to search cities (e.g., Jakarta, Bogor)</small>
+                            <small>Select multiple cities or leave empty for all locations</small>
                         </div>
 
                         <div class="form-group">
@@ -716,6 +749,15 @@
                         </div>
 
                         <div class="form-group">
+                            <label>&nbsp;</label>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="cheapest_first" name="cheapest_first">
+                                <label for="cheapest_first" style="margin-bottom: 0;">Sort results by cheapest first</label>
+                            </div>
+                            <small>Reorder final results by lowest price</small>
+                        </div>
+
+                        <div class="form-group">
                             <label for="max_pages">Max Pages</label>
                             <input type="number" id="max_pages" name="max_pages" value="1" min="0">
                             <small>0 for all pages</small>
@@ -773,11 +815,12 @@
         let cooldownInterval = null;
         let cooldownEndTime = null;
 
-        // City autocomplete functionality
+        // City autocomplete functionality with multi-select
         let autocompleteTimeout;
         const lokasiInput = document.getElementById('lokasi');
         const citySuggestions = document.getElementById('citySuggestions');
-        let currentCityValue = '';
+        const selectedCitiesContainer = document.getElementById('selectedCitiesContainer');
+        let selectedCities = []; // Array to store selected cities
 
         // Check rate limit on page load
         async function checkRateLimit() {
@@ -849,6 +892,44 @@
             };
         }
 
+        // Add city to selected cities
+        function addCity(cityName, cityValue) {
+            // Check if city is already selected
+            if (!selectedCities.find(c => c.value === cityValue)) {
+                selectedCities.push({ name: cityName, value: cityValue });
+                renderSelectedCities();
+            }
+            // Clear input
+            lokasiInput.value = '';
+        }
+
+        // Remove city from selected cities
+        function removeCity(cityValue) {
+            selectedCities = selectedCities.filter(c => c.value !== cityValue);
+            renderSelectedCities();
+        }
+
+        // Render selected cities as chips
+        function renderSelectedCities() {
+            selectedCitiesContainer.innerHTML = '';
+            selectedCities.forEach(city => {
+                const chip = document.createElement('div');
+                chip.className = 'city-chip';
+                chip.innerHTML = `
+                    <span>${city.name}</span>
+                    <span class="city-chip-remove" data-value="${city.value}">&times;</span>
+                `;
+                selectedCitiesContainer.appendChild(chip);
+            });
+
+            // Add click handlers to remove buttons
+            selectedCitiesContainer.querySelectorAll('.city-chip-remove').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    removeCity(this.getAttribute('data-value'));
+                });
+            });
+        }
+
         // Fetch city suggestions
         async function fetchCitySuggestions(term) {
             if (!term || term.length < 2) {
@@ -871,9 +952,9 @@
                     citySuggestions.querySelectorAll('.autocomplete-item').forEach(item => {
                         item.addEventListener('click', function() {
                             const value = this.getAttribute('data-value');
-                            // Replace spaces with +
-                            currentCityValue = value.replace(/ /g, '+');
-                            lokasiInput.value = value; // Display original value with spaces
+                            const cityName = value; // Display name
+                            const cityValue = value.replace(/ /g, '+'); // API value
+                            addCity(cityName, cityValue);
                             citySuggestions.innerHTML = '';
                             citySuggestions.classList.remove('active');
                         });
@@ -943,8 +1024,10 @@
             const form = e.target;
             const formData = new FormData(form);
 
-            // Use currentCityValue if set (from autocomplete), otherwise format manually
-            const lokasiValue = currentCityValue || formData.get('lokasi').replace(/ /g, '+');
+            // Use selected cities array, join with comma if multiple cities selected
+            const lokasiValue = selectedCities.length > 0
+                ? selectedCities.map(c => c.value).join(',')
+                : '';
 
             const data = {
                 lokasi: lokasiValue,
@@ -954,7 +1037,8 @@
                 end_time: formData.get('end_time'),
                 sortby: formData.get('sortby'),
                 max_pages: formData.get('max_pages'),
-                max_venues: formData.get('max_venues')
+                max_venues: formData.get('max_venues'),
+                cheapest_first: document.getElementById('cheapest_first').checked
             };
 
             // Close existing EventSource if any
