@@ -19,7 +19,7 @@ progress_logs = {}
 scraping_sessions = {}
 
 # Rate limiting configuration
-RATE_LIMIT_SECONDS = 60  # 1 minute cooldown
+RATE_LIMIT_SECONDS = 120  # 2 minutes cooldown
 rate_limit_store = {}  # {ip_address: last_scrape_timestamp}
 
 @app.route('/')
