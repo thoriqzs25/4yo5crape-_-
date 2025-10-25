@@ -133,11 +133,17 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
         }
 
         .btn:disabled {
@@ -331,10 +337,16 @@
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
+            transition: background 0.2s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .btn-small:hover {
             background: #5568d3;
+        }
+
+        .btn-small:active {
+            transform: scale(0.98);
         }
 
         .output {
@@ -363,13 +375,232 @@
             display: block;
         }
 
+        /* Mobile/iPhone optimizations */
         @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                max-width: 100%;
+            }
+
+            .header {
+                margin-bottom: 20px;
             }
 
             .header h1 {
-                font-size: 2rem;
+                font-size: 1.75rem;
+                margin-bottom: 5px;
+            }
+
+            .header p {
+                font-size: 0.95rem;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+                gap: 15px;
+            }
+
+            .form-section,
+            .logs-section,
+            .results-section {
+                grid-column: 1 / -1;
+            }
+
+            .logs-section {
+                grid-row: auto;
+            }
+
+            .results-section {
+                grid-row: auto;
+            }
+
+            .card {
+                padding: 15px;
+                border-radius: 10px;
+            }
+
+            .card h2 {
+                font-size: 1.25rem;
+                margin-bottom: 15px;
+            }
+
+            /* Stack form fields vertically on mobile */
+            .form-section form > div[style*="grid"] {
+                display: block !important;
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+            }
+
+            .form-group label {
+                font-size: 14px;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 14px;
+                font-size: 16px; /* Prevents iOS zoom on focus */
+                border-radius: 6px;
+            }
+
+            .form-group small {
+                font-size: 11px;
+            }
+
+            /* Larger, more touch-friendly buttons */
+            .btn {
+                padding: 16px;
+                font-size: 16px;
+                border-radius: 10px;
+                min-height: 50px;
+            }
+
+            .btn-small {
+                padding: 10px 14px;
+                font-size: 13px;
+                min-height: 40px;
+            }
+
+            /* Cooldown indicator */
+            .cooldown-indicator {
+                padding: 12px;
+                font-size: 13px;
+                margin-top: 12px;
+            }
+
+            .cooldown-indicator strong {
+                font-size: 16px;
+            }
+
+            /* Loading spinner */
+            .loading {
+                padding: 15px;
+            }
+
+            .loading p {
+                font-size: 14px;
+            }
+
+            /* Logs output */
+            .logs-section {
+                min-height: auto;
+            }
+
+            .logs-output {
+                min-height: 200px;
+                max-height: 300px;
+                padding: 12px;
+                font-size: 11px;
+                line-height: 1.5;
+            }
+
+            .logs-header h3 {
+                font-size: 0.95rem;
+            }
+
+            /* Results section */
+            .results-section {
+                min-height: auto;
+            }
+
+            .results-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .results-header h2 {
+                font-size: 1.15rem;
+            }
+
+            .download-btns {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn-small {
+                width: 100%;
+                text-align: center;
+            }
+
+            .output {
+                min-height: 200px;
+                max-height: 400px;
+                padding: 15px;
+                font-size: 11px;
+                line-height: 1.5;
+            }
+
+            .error {
+                padding: 12px;
+                font-size: 13px;
+            }
+
+            /* Autocomplete suggestions */
+            .autocomplete-suggestions {
+                font-size: 14px;
+            }
+
+            .autocomplete-item {
+                padding: 12px;
+            }
+        }
+
+        /* Extra small phones (iPhone SE, etc) */
+        @media (max-width: 375px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header p {
+                font-size: 0.9rem;
+            }
+
+            .card {
+                padding: 12px;
+            }
+
+            .card h2 {
+                font-size: 1.1rem;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 12px;
+            }
+
+            .btn {
+                padding: 14px;
+            }
+
+            .output,
+            .logs-output {
+                font-size: 10px;
+            }
+        }
+
+        /* Landscape mode on phones */
+        @media (max-width: 896px) and (orientation: landscape) {
+            .header {
+                margin-bottom: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header p {
+                font-size: 0.85rem;
+            }
+
+            .logs-output,
+            .output {
+                max-height: 250px;
             }
         }
     </style>
@@ -457,8 +688,8 @@
                 <div class="results-header">
                     <h2>Results (<span id="venueCount">0</span> venues)</h2>
                     <div class="download-btns">
-                        <a href="#" class="btn-small" id="downloadJson">Download JSON</a>
-                        <a href="#" class="btn-small" id="downloadTxt">Download TXT</a>
+                        <button class="btn-small" id="copyBtn">📋 Copy Results</button>
+                        <a href="#" class="btn-small" id="downloadTxt">💾 Download TXT</a>
                     </div>
                 </div>
                 <div class="output" id="output"></div>
@@ -763,12 +994,58 @@
             }
         });
 
-        // Download handlers
-        document.getElementById('downloadJson').addEventListener('click', (e) => {
+        // Copy to clipboard handler
+        document.getElementById('copyBtn').addEventListener('click', async (e) => {
             e.preventDefault();
-            window.location.href = '/download/json';
+            const outputText = document.getElementById('output').textContent;
+
+            if (!outputText) {
+                alert('No results to copy!');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(outputText);
+
+                // Visual feedback
+                const btn = e.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                btn.style.background = '#28a745';
+
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = outputText;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                try {
+                    document.execCommand('copy');
+                    const btn = e.target;
+                    const originalText = btn.textContent;
+                    btn.textContent = '✅ Copied!';
+                    btn.style.background = '#28a745';
+
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.background = '';
+                    }, 2000);
+                } catch (err) {
+                    alert('Failed to copy. Please select and copy manually.');
+                }
+
+                document.body.removeChild(textarea);
+            }
         });
 
+        // Download TXT handler
         document.getElementById('downloadTxt').addEventListener('click', (e) => {
             e.preventDefault();
             window.location.href = '/download/txt';
