@@ -438,7 +438,7 @@
                         <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
                         <path d="M8 4v4l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
-                    <span id="cooldownText">Please wait <strong id="cooldownSeconds">30</strong> seconds before scraping again</span>
+                    <span id="cooldownText">Please wait <strong id="cooldownSeconds">60</strong> seconds before scraping again</span>
                 </div>
             </div>
 
@@ -733,8 +733,8 @@
                         document.getElementById('error').classList.add('active');
                     }
 
-                    // Start cooldown timer (30 seconds)
-                    startCooldown(30);
+                    // Start cooldown timer (60 seconds = 1 minute)
+                    startCooldown(60);
                 });
 
                 currentEventSource.addEventListener('error', function(event) {
