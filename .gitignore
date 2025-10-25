@@ -3,3 +3,9 @@ venv/
 venues_output.txt
 venues_data.json
 config.env
+*.pyc
+.env
+.DS_Store
+instance/
+.pytest_cache/
+.coverage

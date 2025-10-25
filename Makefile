@@ -1,6 +1,6 @@
 # AYO Venue Scraper Makefile
 
-.PHONY: run dry-run setup help
+.PHONY: run dry-run setup web help
 
 # Default target
 run:
@@ -15,10 +15,15 @@ setup:
 	python3 -m venv venv
 	source venv/bin/activate && pip install -r requirements.txt --break-system-packages
 
+# Run the web application on port 3000
+web:
+	source venv/bin/activate && python app.py
+
 # Help target
 help:
 	@echo "Available targets:"
 	@echo "  setup    - Create virtual environment and install dependencies"
 	@echo "  run      - Run the venue scraper"
 	@echo "  dry-run  - Preview what will be scraped without actually scraping"
+	@echo "  web      - Run the web application on port 3000"
 	@echo "  help     - Show this help message"

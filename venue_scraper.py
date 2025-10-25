@@ -551,15 +551,22 @@ class VenueScraper:
                 if slot_status == "Available" and available_fields:
                     venue['slot_status'] = f"{len(available_fields)} available fields"
                     venue['available_fields'] = available_fields
-                    
+
+                    # Also collect all time slots for backwards compatibility
+                    all_time_slots = []
+                    for field in available_fields:
+                        if field.get('time_slots'):
+                            all_time_slots.extend(field['time_slots'])
+                    venue['time_slots'] = all_time_slots
+
                     # Format the output as requested
                     print(f"  ✅ {venue['name']} | url -> {venue['url']} | slot available -> {venue['slot_status']}")
                     for field in available_fields:
                         field_sport = field.get('field_sport_type', 'Unknown')
                         print(f"    Field: {field['field_name']} ({field_sport}) - {field['slot_status']}")
-                    
+
                     # Show available time slots
-                    if field.get('time_slots'):
+                    if all_time_slots:
                         print(f"    Available time slots:")
                         slot_count = 0
                         for field in available_fields:
