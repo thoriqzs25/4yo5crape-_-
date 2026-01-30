@@ -116,9 +116,23 @@ class VenueScraper:
         venue_cards = soup.find_all('div', class_='venue-card-item')
         
         for card in venue_cards:
-            # Get venue name from img alt attribute
+            # Get venue name from img alt attribute (try multiple selectors)
             img_tag = card.select_one('div > a > div > img')
-            venue_name = img_tag.get('alt').strip() if img_tag and img_tag.get('alt') else "Unknown"
+            if not img_tag or not img_tag.get('alt'):
+                img_tag = card.select_one('img[alt]')
+            venue_name = img_tag.get('alt').strip() if img_tag and img_tag.get('alt') else None
+
+            # Fallback: extract name from URL slug (e.g., /v/the-racquet-club-trc -> The Racquet Club Trc)
+            if not venue_name:
+                link_tag_for_name = card.select_one('a[href]')
+                if link_tag_for_name:
+                    href = link_tag_for_name.get('href', '')
+                    slug = href.rstrip('/').split('/')[-1] if '/v/' in href else ''
+                    if slug:
+                        venue_name = slug.replace('-', ' ').title()
+
+            if not venue_name:
+                venue_name = "Unknown"
             
             # Get venue URL from href attribute
             link_tag = card.select_one('a')
@@ -134,6 +148,13 @@ class VenueScraper:
                     pass
             
             if venue_name and venue_url:
+                # Blacklist venues with certain keywords in the URL
+                url_slug = venue_url.lower()
+                blacklisted_keywords = ['simulator-', 'sim-', 'kemang-cage']
+                if any(kw in url_slug for kw in blacklisted_keywords):
+                    print(f"Skipping blacklisted venue: {venue_name} -> {venue_url}")
+                    continue
+
                 venue_info.append({
                     'name': venue_name,
                     'url': venue_url,

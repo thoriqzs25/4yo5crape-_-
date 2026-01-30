@@ -321,11 +321,17 @@ def scrape_result(session_id):
 
 def generate_output_text(venues_data, config):
     """Generate formatted output text similar to the original script"""
-    # Filter to only venues with available slots
-    venues_data = [
-        v for v in venues_data
+    all_venues = venues_data
+    # Split into venues with and without available slots
+    venues_with_slots = [
+        v for v in all_venues
         if v.get('available_fields') or v.get('time_slots')
     ]
+    venues_no_slots = [
+        v for v in all_venues
+        if not (v.get('available_fields') or v.get('time_slots'))
+    ]
+    venues_data = venues_with_slots
 
     output = []
     output.append("=" * 80)
@@ -338,10 +344,20 @@ def generate_output_text(venues_data, config):
         output.append(f"Date: {start_date} to {end_date}")
     output.append(f"Location: {config['lokasi'] or 'All Locations'}")
     output.append(f"Sport: {'Tennis' if config['cabor'] == 7 else 'Padel' if config['cabor'] == 12 else 'Pickleball' if config['cabor'] == 15 else config['cabor']}")
+    output.append(f"Total venues checked: {len(all_venues)}")
     output.append(f"Venues with available slots: {len(venues_data)}")
+    output.append(f"Venues with no slots: {len(venues_no_slots)}")
     if config.get('cheapest_first'):
         output.append(f"Sorted by: Cheapest First")
     output.append("=" * 80)
+
+    # List venues with no available slots
+    if venues_no_slots:
+        output.append("")
+        output.append(f"--- Checked but no slots available ({len(venues_no_slots)}) ---")
+        for v in venues_no_slots:
+            output.append(f"  - {v['name']} ({v['url']})")
+
     output.append("")
 
     # If cheapest_first is enabled, collect and sort all slots by price
@@ -361,6 +377,7 @@ def generate_output_text(venues_data, config):
                                 'venue_name': venue_name,
                                 'venue_url': venue_url,
                                 'field_name': field_name,
+                                'date': slot.get('date', ''),
                                 'start_time': slot.get('start_time', 'N/A'),
                                 'end_time': slot.get('end_time', 'N/A'),
                                 'price': slot.get('price', 0)
@@ -373,6 +390,7 @@ def generate_output_text(venues_data, config):
                             'venue_name': venue_name,
                             'venue_url': venue_url,
                             'field_name': slot.get('field_name', 'Unknown'),
+                            'date': slot.get('date', ''),
                             'start_time': slot.get('start_time', 'N/A'),
                             'end_time': slot.get('end_time', 'N/A'),
                             'price': slot.get('price', 0)
@@ -392,7 +410,8 @@ def generate_output_text(venues_data, config):
             else:
                 price_formatted = 'Price not available'
 
-            output.append(f"{i}. {slot['venue_name']} - {slot['field_name']}")
+            date_str = f" ({slot['date']})" if slot.get('date') else ""
+            output.append(f"{i}. {slot['venue_name']} - {slot['field_name']}{date_str}")
             output.append(f"   Time: {slot['start_time']} - {slot['end_time']}  |  {price_formatted}")
             output.append(f"   URL: {slot['venue_url']}")
             output.append("")
@@ -425,6 +444,7 @@ def generate_output_text(venues_data, config):
                 if field.get('time_slots'):
                     output.append(f"   Available Hours & Prices:")
                     for slot in field['time_slots']:
+                        date = slot.get('date', '')
                         start = slot.get('start_time', 'N/A')
                         end = slot.get('end_time', 'N/A')
                         price = slot.get('price', 'N/A')
@@ -436,7 +456,8 @@ def generate_output_text(venues_data, config):
                                 price_formatted = price
                         else:
                             price_formatted = 'Price not available'
-                        output.append(f"      • {start} - {end}  |  {price_formatted}")
+                        date_prefix = f"{date}  " if date else ""
+                        output.append(f"      • {date_prefix}{start} - {end}  |  {price_formatted}")
 
         # Fallback for time_slots (Selenium mode or old data structure)
         elif 'time_slots' in venue and venue['time_slots']:
@@ -457,6 +478,7 @@ def generate_output_text(venues_data, config):
                     output.append(f"\n   Field: {field_name}")
                     output.append(f"   Available Hours & Prices:")
                     for slot in slots:
+                        date = slot.get('date', '')
                         start = slot.get('start_time', 'N/A')
                         end = slot.get('end_time', 'N/A')
                         price = slot.get('price', 'N/A')
@@ -468,7 +490,8 @@ def generate_output_text(venues_data, config):
                                 price_formatted = price
                         else:
                             price_formatted = 'Price not available'
-                        output.append(f"      • {start} - {end}  |  {price_formatted}")
+                        date_prefix = f"{date}  " if date else ""
+                        output.append(f"      • {date_prefix}{start} - {end}  |  {price_formatted}")
             else:
                 # If time_slots are strings, display them as before
                 for slot in venue['time_slots']:

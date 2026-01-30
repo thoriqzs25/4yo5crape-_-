@@ -78,8 +78,19 @@
             font-size: 1.5rem;
         }
 
-        .form-group {
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 20px;
             margin-bottom: 20px;
+        }
+
+        .form-grid-full {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            margin-bottom: 0;
         }
 
         .form-group label {
@@ -497,12 +508,12 @@
             }
 
             /* Stack form fields vertically on mobile */
-            .form-section form > div[style*="grid"] {
-                display: block !important;
+            .form-grid {
+                grid-template-columns: 1fr;
             }
 
             .form-group {
-                margin-bottom: 15px;
+                margin-bottom: 0;
             }
 
             .form-group label {
@@ -676,7 +687,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Venue Scraper <span style="font-size: 0.4em; opacity: 0.7; vertical-align: middle;">v1.0.0</span></h1>
+            <h1>Venue Scraper <span style="font-size: 0.4em; opacity: 0.7; vertical-align: middle;">v1.1.0</span></h1>
             <p>Scrape tennis and padel court availability. More to come</p>
         </div>
 
@@ -684,8 +695,8 @@
             <div class="card form-section">
                 <h2>Scraper Settings</h2>
                 <form id="scraperForm">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                        <div class="form-group">
+                    <div class="form-grid">
+                        <div class="form-group form-grid-full">
                             <label for="lokasi">Locations (Multi-select)</label>
                             <div id="selectedCitiesContainer" class="selected-cities"></div>
                             <div class="autocomplete-container">
@@ -701,6 +712,15 @@
                                 <option value="7" selected>Tennis</option>
                                 <option value="12">Padel</option>
                                 <option value="15">Pickleball</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sortby">Sort By</label>
+                            <select id="sortby" name="sortby">
+                                <option value="5" selected>Popularity</option>
+                                <option value="1">Name (A-Z)</option>
+                                <option value="2">Name (Z-A)</option>
                             </select>
                         </div>
 
@@ -780,34 +800,11 @@
                             <small>Filter slots ending by this time</small>
                         </div>
 
-                        <div class="form-group">
-                            <label for="sortby">Sort By</label>
-                            <select id="sortby" name="sortby">
-                                <option value="5" selected>Popularity</option>
-                                <option value="1">Name (A-Z)</option>
-                                <option value="2">Name (Z-A)</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label>&nbsp;</label>
+                        <div class="form-group form-grid-full">
                             <div class="checkbox-group">
                                 <input type="checkbox" id="cheapest_first" name="cheapest_first">
                                 <label for="cheapest_first" style="margin-bottom: 0;">Sort results by cheapest first</label>
                             </div>
-                            <small>Reorder final results by lowest price</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="max_pages">Max Pages</label>
-                            <input type="number" id="max_pages" name="max_pages" value="1" min="0">
-                            <small>0 for all pages</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="max_venues">Max Venue to Look For</label>
-                            <input type="number" id="max_venues" name="max_venues" value="0" min="0">
-                            <small>0 for all venues</small>
                         </div>
                     </div>
 
@@ -878,19 +875,21 @@
             if (params.has('start_time')) document.getElementById('start_time').value = params.get('start_time');
             if (params.has('end_time')) document.getElementById('end_time').value = params.get('end_time');
             if (params.has('sortby')) document.getElementById('sortby').value = params.get('sortby');
-            if (params.has('max_pages')) document.getElementById('max_pages').value = params.get('max_pages');
-            if (params.has('max_venues')) document.getElementById('max_venues').value = params.get('max_venues');
             if (params.has('cheapest_first')) document.getElementById('cheapest_first').checked = params.get('cheapest_first') === 'true';
 
-            // Restore selected cities
+            // Restore selected cities from URL, or use defaults
             if (params.has('lokasi') && params.get('lokasi')) {
                 const cities = params.get('lokasi').split(',');
                 cities.forEach(cityValue => {
                     const cityName = cityValue.replace(/\+/g, ' ');
                     selectedCities.push({ name: cityName, value: cityValue });
                 });
-                renderSelectedCities();
+            } else {
+                // Default locations
+                selectedCities.push({ name: 'Kota Jakarta Selatan', value: 'Kota+Jakarta+Selatan' });
+                selectedCities.push({ name: 'Kota Jakarta Timur', value: 'Kota+Jakarta+Timur' });
             }
+            renderSelectedCities();
         }
 
         // Update URL search params with current settings
@@ -903,8 +902,6 @@
             if (data.start_time) params.set('start_time', data.start_time);
             if (data.end_time) params.set('end_time', data.end_time);
             if (data.sortby) params.set('sortby', data.sortby);
-            if (data.max_pages) params.set('max_pages', data.max_pages);
-            if (data.max_venues) params.set('max_venues', data.max_venues);
             if (data.cheapest_first) params.set('cheapest_first', 'true');
 
             const newURL = window.location.pathname + '?' + params.toString();
@@ -1128,8 +1125,8 @@
                 start_time: formData.get('start_time'),
                 end_time: formData.get('end_time'),
                 sortby: formData.get('sortby'),
-                max_pages: formData.get('max_pages'),
-                max_venues: formData.get('max_venues'),
+                max_pages: '0',
+                max_venues: '0',
                 cheapest_first: document.getElementById('cheapest_first').checked
             };
 
