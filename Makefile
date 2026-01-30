@@ -17,7 +17,7 @@ setup:
 
 # Run the web application on port 3000
 web:
-	source venv/bin/activate && python app.py
+	source venv/bin/activate && python3 app.py
 
 # Help target
 help:

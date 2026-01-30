@@ -207,7 +207,8 @@ def scrape():
             'max_venues_to_test': int(data.get('max_venues', 0)),
             'use_selenium': False,  # Always use API mode (faster and more reliable)
             'use_api': True,  # Always use API mode
-            'date': data.get('date', datetime.now().strftime('%Y-%m-%d')),
+            'start_date': data.get('start_date', datetime.now().strftime('%Y-%m-%d')),
+            'end_date': data.get('end_date', datetime.now().strftime('%Y-%m-%d')),
             'max_pages': int(data.get('max_pages', 1)),
             'start_time': data.get('start_time', ''),  # Optional start time filter (HH:MM format)
             'end_time': data.get('end_time', ''),  # Optional end time filter (HH:MM format)
@@ -269,6 +270,13 @@ def scrape_progress(session_id):
                     error_msg = message.replace('__ERROR__: ', '')
                     yield f"event: error\ndata: {json.dumps({'error': error_msg})}\n\n"
                     break
+                elif message.startswith('__PROGRESS__:'):
+                    # Send progress event
+                    parts = message.split(':')
+                    current = int(parts[1])
+                    total = int(parts[2])
+                    pct = int((current / total) * 100) if total > 0 else 0
+                    yield f"event: progress\ndata: {json.dumps({'current': current, 'total': total, 'percent': pct})}\n\n"
                 else:
                     # Filter and send progress message
                     filtered = filter_progress_logs(message)
@@ -313,13 +321,24 @@ def scrape_result(session_id):
 
 def generate_output_text(venues_data, config):
     """Generate formatted output text similar to the original script"""
+    # Filter to only venues with available slots
+    venues_data = [
+        v for v in venues_data
+        if v.get('available_fields') or v.get('time_slots')
+    ]
+
     output = []
     output.append("=" * 80)
     output.append(f"VENUE SCRAPING RESULTS")
-    output.append(f"Date: {config['date']}")
+    start_date = config.get('start_date', config.get('date', 'N/A'))
+    end_date = config.get('end_date', start_date)
+    if start_date == end_date:
+        output.append(f"Date: {start_date}")
+    else:
+        output.append(f"Date: {start_date} to {end_date}")
     output.append(f"Location: {config['lokasi'] or 'All Locations'}")
-    output.append(f"Sport: {'Tennis' if config['cabor'] == 7 else 'Padel' if config['cabor'] == 12 else config['cabor']}")
-    output.append(f"Total venues found: {len(venues_data)}")
+    output.append(f"Sport: {'Tennis' if config['cabor'] == 7 else 'Padel' if config['cabor'] == 12 else 'Pickleball' if config['cabor'] == 15 else config['cabor']}")
+    output.append(f"Venues with available slots: {len(venues_data)}")
     if config.get('cheapest_first'):
         output.append(f"Sorted by: Cheapest First")
     output.append("=" * 80)

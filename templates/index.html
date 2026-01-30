@@ -202,6 +202,42 @@
             min-height: 400px;
         }
 
+        .progress-container {
+            display: none;
+            position: relative;
+            background: #e0e0e0;
+            border-radius: 8px;
+            height: 28px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            transition: width 0.4s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+
         .logs-output {
             background: #1e1e1e;
             color: #d4d4d4;
@@ -640,7 +676,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Venue Scraper</h1>
+            <h1>Venue Scraper <span style="font-size: 0.4em; opacity: 0.7; vertical-align: middle;">v1.0.0</span></h1>
             <p>Scrape tennis and padel court availability. More to come</p>
         </div>
 
@@ -669,8 +705,13 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="date">Date</label>
-                            <input type="date" id="date" name="date" required>
+                            <label for="start_date">Start Date</label>
+                            <input type="date" id="start_date" name="start_date" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="end_date">End Date</label>
+                            <input type="date" id="end_date" name="end_date" required>
                         </div>
 
                         <div class="form-group">
@@ -790,6 +831,10 @@
                     <div class="spinner"></div>
                     <p>Initializing scraper...</p>
                 </div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar"></div>
+                    <span class="progress-text" id="progressText">0%</span>
+                </div>
                 <div class="logs-output" id="logsOutput"></div>
             </div>
 
@@ -808,8 +853,9 @@
     </div>
 
     <script>
-        // Set default date to today
-        document.getElementById('date').valueAsDate = new Date();
+        // Set default dates to today
+        document.getElementById('start_date').valueAsDate = new Date();
+        document.getElementById('end_date').valueAsDate = new Date();
 
         // Rate limiting state
         let cooldownInterval = null;
@@ -821,6 +867,51 @@
         const citySuggestions = document.getElementById('citySuggestions');
         const selectedCitiesContainer = document.getElementById('selectedCitiesContainer');
         let selectedCities = []; // Array to store selected cities
+
+        // Load settings from URL search params
+        function loadSettingsFromURL() {
+            const params = new URLSearchParams(window.location.search);
+
+            if (params.has('start_date')) document.getElementById('start_date').value = params.get('start_date');
+            if (params.has('end_date')) document.getElementById('end_date').value = params.get('end_date');
+            if (params.has('cabor')) document.getElementById('cabor').value = params.get('cabor');
+            if (params.has('start_time')) document.getElementById('start_time').value = params.get('start_time');
+            if (params.has('end_time')) document.getElementById('end_time').value = params.get('end_time');
+            if (params.has('sortby')) document.getElementById('sortby').value = params.get('sortby');
+            if (params.has('max_pages')) document.getElementById('max_pages').value = params.get('max_pages');
+            if (params.has('max_venues')) document.getElementById('max_venues').value = params.get('max_venues');
+            if (params.has('cheapest_first')) document.getElementById('cheapest_first').checked = params.get('cheapest_first') === 'true';
+
+            // Restore selected cities
+            if (params.has('lokasi') && params.get('lokasi')) {
+                const cities = params.get('lokasi').split(',');
+                cities.forEach(cityValue => {
+                    const cityName = cityValue.replace(/\+/g, ' ');
+                    selectedCities.push({ name: cityName, value: cityValue });
+                });
+                renderSelectedCities();
+            }
+        }
+
+        // Update URL search params with current settings
+        function updateURLParams(data) {
+            const params = new URLSearchParams();
+            if (data.lokasi) params.set('lokasi', data.lokasi);
+            if (data.cabor) params.set('cabor', data.cabor);
+            if (data.start_date) params.set('start_date', data.start_date);
+            if (data.end_date) params.set('end_date', data.end_date);
+            if (data.start_time) params.set('start_time', data.start_time);
+            if (data.end_time) params.set('end_time', data.end_time);
+            if (data.sortby) params.set('sortby', data.sortby);
+            if (data.max_pages) params.set('max_pages', data.max_pages);
+            if (data.max_venues) params.set('max_venues', data.max_venues);
+            if (data.cheapest_first) params.set('cheapest_first', 'true');
+
+            const newURL = window.location.pathname + '?' + params.toString();
+            window.history.replaceState({}, '', newURL);
+        }
+
+        loadSettingsFromURL();
 
         // Check rate limit on page load
         async function checkRateLimit() {
@@ -1032,7 +1123,8 @@
             const data = {
                 lokasi: lokasiValue,
                 cabor: formData.get('cabor'),
-                date: formData.get('date'),
+                start_date: formData.get('start_date'),
+                end_date: formData.get('end_date'),
                 start_time: formData.get('start_time'),
                 end_time: formData.get('end_time'),
                 sortby: formData.get('sortby'),
@@ -1040,6 +1132,9 @@
                 max_venues: formData.get('max_venues'),
                 cheapest_first: document.getElementById('cheapest_first').checked
             };
+
+            // Update URL with current settings for sharing
+            updateURLParams(data);
 
             // Close existing EventSource if any
             if (currentEventSource) {
@@ -1051,6 +1146,9 @@
             document.getElementById('logsOutput').classList.remove('active');
             document.getElementById('results').classList.remove('active');
             document.getElementById('error').classList.remove('active');
+            document.getElementById('progressContainer').classList.remove('active');
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
             document.getElementById('submitBtn').disabled = true;
             document.getElementById('logsOutput').textContent = '';
             document.getElementById('output').textContent = '';
@@ -1094,6 +1192,17 @@
                         logsOutput.scrollTop = logsOutput.scrollHeight;
                     }
                 };
+
+                currentEventSource.addEventListener('progress', function(event) {
+                    const data = JSON.parse(event.data);
+                    const progressContainer = document.getElementById('progressContainer');
+                    const progressBar = document.getElementById('progressBar');
+                    const progressText = document.getElementById('progressText');
+
+                    progressContainer.classList.add('active');
+                    progressBar.style.width = data.percent + '%';
+                    progressText.textContent = `${data.current}/${data.total} venues (${data.percent}%)`;
+                });
 
                 currentEventSource.addEventListener('complete', async function(event) {
                     currentEventSource.close();

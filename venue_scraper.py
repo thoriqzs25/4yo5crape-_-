@@ -30,7 +30,8 @@ def load_config():
         'max_venues_to_test': int(config.get('MAX_VENUES_TO_TEST', os.getenv('MAX_VENUES_TO_TEST', '3'))),  # Number of venues to test with Selenium (set to 0 to test all)
         'use_selenium': config.get('USE_SELENIUM', os.getenv('USE_SELENIUM', 'True')).lower() == 'true',  # Set to False to use static scraping only
         'use_api': config.get('USE_API', os.getenv('USE_API', 'False')).lower() == 'true',  # Set to True to use API for slot data
-        'date': config.get('DATE', os.getenv('DATE', '2025-01-15')),  # Date for API slot queries (YYYY-MM-DD format)
+        'start_date': config.get('START_DATE', os.getenv('START_DATE', '2025-01-15')),  # Start date for API slot queries (YYYY-MM-DD format)
+        'end_date': config.get('END_DATE', os.getenv('END_DATE', '2025-01-15')),  # End date for API slot queries (YYYY-MM-DD format)
         'max_pages': int(config.get('MAX_PAGES', os.getenv('MAX_PAGES', '1'))),  # Maximum number of pages to scrape
         'start_time': config.get('START_TIME', os.getenv('START_TIME', '')),  # Start time filter (HH:MM format, leave empty to disable)
         'end_time': config.get('END_TIME', os.getenv('END_TIME', '')),  # End time filter (HH:MM format, leave empty to disable)
@@ -46,6 +47,18 @@ class VenueScraper:
         })
         self.venues = []
         self.single_venue_scraper = None
+
+    def get_date_range(self):
+        """Generate list of date strings from start_date to end_date"""
+        from datetime import datetime, timedelta
+        start = datetime.strptime(self.config['start_date'], '%Y-%m-%d')
+        end = datetime.strptime(self.config['end_date'], '%Y-%m-%d')
+        dates = []
+        current = start
+        while current <= end:
+            dates.append(current.strftime('%Y-%m-%d'))
+            current += timedelta(days=1)
+        return dates
 
     def is_slot_within_time_range(self, slot_start_time):
         """Check if a slot's start time is within the configured time range (inclusive)"""
@@ -179,45 +192,50 @@ class VenueScraper:
             return "Error", []
     
     def get_venue_slot_info_api(self, venue_id, venue_name):
-        """Get slot availability and time slots using API"""
+        """Get slot availability and time slots using API across all dates in range"""
         try:
             print(f"  Checking slots via API for: {venue_name} (ID: {venue_id})")
-            
+
             if not venue_id:
                 print(f"    ⚠️  No venue_id found, skipping API call")
                 return "No venue_id", []
-            
-            # Build API URL
-            api_url = f"{self.base_url}/venues-ajax/op-times-and-fields?venue_id={venue_id}&date={self.config['date']}"
-            print(f"    🔗 API URL: {api_url}")
-            
-            # Make API request
-            response = self.session.get(api_url)
-            response.raise_for_status()
-            
-            # Parse JSON response
-            api_data = response.json()
-            
-            # Extract fields and slots
-            available_fields = []
-            
-            if 'fields' in api_data:
+
+            dates = self.get_date_range()
+
+            # Aggregate fields across all dates
+            # Key: field_id -> field data with accumulated slots
+            fields_map = {}
+
+            for date in dates:
+                # Build API URL
+                api_url = f"{self.base_url}/venues-ajax/op-times-and-fields?venue_id={venue_id}&date={date}"
+                print(f"    🔗 API URL: {api_url}")
+
+                # Make API request
+                response = self.session.get(api_url)
+                response.raise_for_status()
+
+                # Parse JSON response
+                api_data = response.json()
+
+                if 'fields' not in api_data:
+                    continue
+
                 for field in api_data['fields']:
                     field_id = field.get('field_id')
                     field_name = field.get('field_name', 'Unknown Field')
                     sport_id = field.get('sport_id')
                     total_available_slots = field.get('total_available_slots', 0)
                     slots = field.get('slots', [])
-                    
-                    print(f"    📊 Field: {field_name} (Sport ID: {sport_id}, Available: {total_available_slots})")
-                    
+
+                    print(f"    📊 [{date}] Field: {field_name} (Sport ID: {sport_id}, Available: {total_available_slots})")
+
                     # Apply CABOR filtering - only include fields matching the configured sport
                     if sport_id != self.config['cabor']:
                         print(f"    ⏭️  Skipping field (sport_id {sport_id} != {self.config['cabor']})")
                         continue
-                    
+
                     # Find available slots (is_available: 1) and apply time filtering
-                    available_slots = []
                     for slot in slots:
                         if slot.get('is_available') == 1:
                             slot_start_time = slot.get('start_time')
@@ -231,26 +249,36 @@ class VenueScraper:
                                     'price': slot.get('price', 0),
                                     'field_name': field_name
                                 }
-                                available_slots.append(slot_data)
-                    
-                    # Only include fields with available slots
-                    if available_slots:
-                        available_fields.append({
-                            'field_name': field_name,
-                            'field_id': field_id,
-                            'field_sport_type': 'Tennis' if sport_id == 7 else 'Padel' if sport_id == 12 else f'Sport_{sport_id}',
-                            'slot_status': f'{len(available_slots)} slots available',
-                            'time_slots': available_slots
-                        })
-                        print(f"    ✅ Available field: {field_name} - {len(available_slots)} slots")
-                    else:
-                        print(f"    ❌ No available slots for field: {field_name}")
-            
+
+                                # Initialize field entry if not seen before
+                                if field_id not in fields_map:
+                                    fields_map[field_id] = {
+                                        'field_name': field_name,
+                                        'field_id': field_id,
+                                        'field_sport_type': 'Tennis' if sport_id == 7 else 'Padel' if sport_id == 12 else 'Pickleball' if sport_id == 15 else f'Sport_{sport_id}',
+                                        'time_slots': []
+                                    }
+
+                                fields_map[field_id]['time_slots'].append(slot_data)
+
+                # Delay between date requests (skip delay on last date)
+                if len(dates) > 1 and date != dates[-1]:
+                    time.sleep(1)
+
+            # Build available_fields from aggregated data
+            available_fields = []
+            for field_id, field_data in fields_map.items():
+                if field_data['time_slots']:
+                    field_data['slot_status'] = f"{len(field_data['time_slots'])} slots available"
+                    available_fields.append(field_data)
+                    print(f"    ✅ Available field: {field_data['field_name']} - {len(field_data['time_slots'])} slots")
+
             if available_fields:
                 return "Available", available_fields
             else:
+                print(f"    ❌ No available slots across {len(dates)} date(s)")
                 return "No available slots", []
-                
+
         except requests.RequestException as e:
             print(f"  API request error: {e}")
             return "API Error", []
@@ -503,7 +531,12 @@ class VenueScraper:
         
         # Show data source configuration
         if self.config.get('use_api', False):
-            print(f"   • Slot Data Source: API (date: {self.config.get('date', 'N/A')})")
+            start_date = self.config.get('start_date', 'N/A')
+            end_date = self.config.get('end_date', 'N/A')
+            if start_date == end_date:
+                print(f"   • Slot Data Source: API (date: {start_date})")
+            else:
+                print(f"   • Slot Data Source: API (dates: {start_date} to {end_date})")
         elif self.config.get('use_selenium', True):
             print(f"   • Slot Data Source: Selenium (browser automation)")
         else:
@@ -670,6 +703,9 @@ class VenueScraper:
                 else:
                     print(f"  ❌ {venue['name']} | url -> {venue['url']} | slot available -> {slot_status}")
             
+            # Emit progress for SSE consumers
+            print(f"__PROGRESS__:{i}:{len(venues_to_process)}")
+
             # Be respectful - add delay between venue requests
             time.sleep(2)
     
@@ -690,7 +726,13 @@ class VenueScraper:
                 location_display = location_display.replace('Kota+', 'Kota ').replace('+', ' ')
             
             # Create dynamic title with date and location
-            title = f"VENUE SCRAPING RESULTS FOR DATE {self.config.get('date', 'N/A')}"
+            start_date = self.config.get('start_date', 'N/A')
+            end_date = self.config.get('end_date', 'N/A')
+            if start_date == end_date:
+                date_display = start_date
+            else:
+                date_display = f"{start_date} TO {end_date}"
+            title = f"VENUE SCRAPING RESULTS FOR DATE {date_display}"
             if location_display != 'All Locations':
                 title += f" IN {location_display.upper()}"
             
