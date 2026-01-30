@@ -686,6 +686,15 @@
                 <form id="scraperForm">
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
                         <div class="form-group">
+                            <label for="platform">Platform</label>
+                            <select id="platform" name="platform">
+                                <option value="all">All</option>
+                                <option value="ayo" selected>AYO</option>
+                                <option value="gelora">Gelora</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
                             <label for="lokasi">Locations (Multi-select)</label>
                             <div id="selectedCitiesContainer" class="selected-cities"></div>
                             <div class="autocomplete-container">
@@ -872,6 +881,7 @@
         function loadSettingsFromURL() {
             const params = new URLSearchParams(window.location.search);
 
+            if (params.has('platform')) document.getElementById('platform').value = params.get('platform');
             if (params.has('start_date')) document.getElementById('start_date').value = params.get('start_date');
             if (params.has('end_date')) document.getElementById('end_date').value = params.get('end_date');
             if (params.has('cabor')) document.getElementById('cabor').value = params.get('cabor');
@@ -896,6 +906,7 @@
         // Update URL search params with current settings
         function updateURLParams(data) {
             const params = new URLSearchParams();
+            if (data.platform) params.set('platform', data.platform);
             if (data.lokasi) params.set('lokasi', data.lokasi);
             if (data.cabor) params.set('cabor', data.cabor);
             if (data.start_date) params.set('start_date', data.start_date);
@@ -911,7 +922,28 @@
             window.history.replaceState({}, '', newURL);
         }
 
+        // Platform change handler — adapt sport dropdown
+        function updateSportDropdown() {
+            const platform = document.getElementById('platform').value;
+            const cabor = document.getElementById('cabor');
+
+            if (platform === 'gelora') {
+                // Gelora only supports Tennis
+                cabor.value = '7';
+                cabor.disabled = true;
+            } else if (platform === 'all') {
+                // When "All", only Tennis is common
+                cabor.value = '7';
+                cabor.disabled = true;
+            } else {
+                cabor.disabled = false;
+            }
+        }
+
+        document.getElementById('platform').addEventListener('change', updateSportDropdown);
+
         loadSettingsFromURL();
+        updateSportDropdown();
 
         // Check rate limit on page load
         async function checkRateLimit() {
@@ -1121,6 +1153,7 @@
                 : '';
 
             const data = {
+                platform: formData.get('platform'),
                 lokasi: lokasiValue,
                 cabor: formData.get('cabor'),
                 start_date: formData.get('start_date'),

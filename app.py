@@ -3,6 +3,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from venue_scraper import VenueScraper
+from gelora_scraper import GeloraScraper
 import io
 import sys
 from contextlib import redirect_stdout
@@ -80,7 +81,13 @@ def filter_progress_logs(logs):
             '✅', '❌',
             'Scraping completed',
             'available fields',
-            'Processing all'
+            'Processing all',
+            '[AYO]',
+            '[GELORA]',
+            'Gelora scraper',
+            'Gelora scraping',
+            'Fetching date:',
+            'total slots'
         ]):
             filtered.append(line)
 
@@ -98,14 +105,32 @@ def run_scraper_thread(session_id, config):
         def log_callback(msg):
             pass  # LogCapture will handle the queue directly
 
-        # Run the scraper with stdout capture
+        # Run the scraper(s) with stdout capture
         log_capture = LogCapture(log_callback, message_queue)
-        with redirect_stdout(log_capture):
-            scraper = VenueScraper(config)
-            scraper.scrape_venues()
+        platform = config.get('platform', 'ayo')
 
-        # Get results
-        venues_data = scraper.venues
+        with redirect_stdout(log_capture):
+            venues_data = []
+
+            if platform in ('ayo', 'all'):
+                print("=" * 40)
+                print("[AYO] Starting AYO scraper...")
+                print("=" * 40)
+                ayo_scraper = VenueScraper(config)
+                ayo_scraper.scrape_venues()
+                for v in ayo_scraper.venues:
+                    v['platform'] = 'ayo'
+                venues_data.extend(ayo_scraper.venues)
+
+            if platform in ('gelora', 'all'):
+                print("=" * 40)
+                print("[GELORA] Starting Gelora scraper...")
+                print("=" * 40)
+                gelora_scraper = GeloraScraper(config)
+                gelora_scraper.scrape_venues()
+                for v in gelora_scraper.venues:
+                    v['platform'] = 'gelora'
+                venues_data.extend(gelora_scraper.venues)
 
         # Generate output text
         output_text = generate_output_text(venues_data, config)
@@ -197,22 +222,25 @@ def scrape():
         data = request.get_json()
 
         # Build config from form inputs
+        platform = data.get('platform', 'ayo')
+
         config = {
             'base_url': 'https://ayo.co.id',
             'venues_path': '/venues',
-            'sortby': int(data.get('sortby', 5)),
+            'sortby': int(data.get('sortby') or 5),
             'tipe': 'venue',
             'lokasi': data.get('lokasi', ''),
-            'cabor': int(data.get('cabor', 7)),
-            'max_venues_to_test': int(data.get('max_venues', 0)),
+            'cabor': int(data.get('cabor') or 7),
+            'max_venues_to_test': int(data.get('max_venues') or 0),
             'use_selenium': False,  # Always use API mode (faster and more reliable)
             'use_api': True,  # Always use API mode
-            'start_date': data.get('start_date', datetime.now().strftime('%Y-%m-%d')),
-            'end_date': data.get('end_date', datetime.now().strftime('%Y-%m-%d')),
-            'max_pages': int(data.get('max_pages', 1)),
+            'start_date': data.get('start_date') or datetime.now().strftime('%Y-%m-%d'),
+            'end_date': data.get('end_date') or datetime.now().strftime('%Y-%m-%d'),
+            'max_pages': int(data.get('max_pages') or 1),
             'start_time': data.get('start_time', ''),  # Optional start time filter (HH:MM format)
             'end_time': data.get('end_time', ''),  # Optional end time filter (HH:MM format)
-            'cheapest_first': data.get('cheapest_first', False)  # Sort results by cheapest first
+            'cheapest_first': data.get('cheapest_first', False),  # Sort results by cheapest first
+            'platform': platform
         }
 
         # Update rate limit for this IP
@@ -338,6 +366,9 @@ def generate_output_text(venues_data, config):
         output.append(f"Date: {start_date} to {end_date}")
     output.append(f"Location: {config['lokasi'] or 'All Locations'}")
     output.append(f"Sport: {'Tennis' if config['cabor'] == 7 else 'Padel' if config['cabor'] == 12 else 'Pickleball' if config['cabor'] == 15 else config['cabor']}")
+    platform = config.get('platform', 'ayo')
+    platform_label = {'ayo': 'AYO', 'gelora': 'Gelora', 'all': 'AYO + Gelora'}.get(platform, platform)
+    output.append(f"Platform: {platform_label}")
     output.append(f"Venues with available slots: {len(venues_data)}")
     if config.get('cheapest_first'):
         output.append(f"Sorted by: Cheapest First")
@@ -363,7 +394,8 @@ def generate_output_text(venues_data, config):
                                 'field_name': field_name,
                                 'start_time': slot.get('start_time', 'N/A'),
                                 'end_time': slot.get('end_time', 'N/A'),
-                                'price': slot.get('price', 0)
+                                'price': slot.get('price', 0),
+                                'platform': venue.get('platform', 'ayo')
                             })
             # Collect slots from time_slots (fallback)
             elif 'time_slots' in venue and venue['time_slots']:
@@ -375,7 +407,8 @@ def generate_output_text(venues_data, config):
                             'field_name': slot.get('field_name', 'Unknown'),
                             'start_time': slot.get('start_time', 'N/A'),
                             'end_time': slot.get('end_time', 'N/A'),
-                            'price': slot.get('price', 0)
+                            'price': slot.get('price', 0),
+                            'platform': venue.get('platform', 'ayo')
                         })
 
         # Sort slots by price (ascending)
@@ -392,7 +425,8 @@ def generate_output_text(venues_data, config):
             else:
                 price_formatted = 'Price not available'
 
-            output.append(f"{i}. {slot['venue_name']} - {slot['field_name']}")
+            ptag = f"[{slot.get('platform', 'ayo').upper()}] " if platform == 'all' else ''
+            output.append(f"{i}. {ptag}{slot['venue_name']} - {slot['field_name']}")
             output.append(f"   Time: {slot['start_time']} - {slot['end_time']}  |  {price_formatted}")
             output.append(f"   URL: {slot['venue_url']}")
             output.append("")
@@ -400,7 +434,8 @@ def generate_output_text(venues_data, config):
         return "\n".join(output)
 
     for i, venue in enumerate(venues_data, 1):
-        output.append(f"{i}. {venue['name']}")
+        ptag = f"[{venue.get('platform', 'ayo').upper()}] " if platform == 'all' else ''
+        output.append(f"{i}. {ptag}{venue['name']}")
         output.append(f"   URL: {venue['url']}")
         if venue.get('venue_id'):
             output.append(f"   Venue ID: {venue['venue_id']}")
@@ -525,5 +560,5 @@ def download(format):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 3000))
+    port = int(os.environ.get('PORT', 3001))
     app.run(host='0.0.0.0', port=port, debug=True)
