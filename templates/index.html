@@ -215,16 +215,30 @@
 
         .progress-container {
             display: none;
-            position: relative;
-            background: #e0e0e0;
-            border-radius: 8px;
-            height: 28px;
-            margin-bottom: 12px;
-            overflow: hidden;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
         }
 
         .progress-container.active {
-            display: block;
+            display: flex;
+        }
+
+        .progress-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #555;
+            min-width: 48px;
+            text-align: right;
+        }
+
+        .progress-track {
+            position: relative;
+            flex: 1;
+            background: #e0e0e0;
+            border-radius: 8px;
+            height: 24px;
+            overflow: hidden;
         }
 
         .progress-bar {
@@ -244,7 +258,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: #333;
         }
@@ -687,7 +701,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Venue Scraper <span style="font-size: 0.4em; opacity: 0.7; vertical-align: middle;">v1.1.0</span></h1>
+            <h1>Venue Scraper <span style="font-size: 0.4em; opacity: 0.7; vertical-align: middle;">v2.0.0</span></h1>
             <p>Scrape tennis and padel court availability. More to come</p>
         </div>
 
@@ -696,6 +710,15 @@
                 <h2>Scraper Settings</h2>
                 <form id="scraperForm">
                     <div class="form-grid">
+                        <div class="form-group">
+                            <label for="platform">Platform</label>
+                            <select id="platform" name="platform">
+                                <option value="all">All</option>
+                                <option value="ayo" selected>AYO</option>
+                                <option value="gelora">Gelora</option>
+                            </select>
+                        </div>
+
                         <div class="form-group form-grid-full">
                             <label for="lokasi">Locations (Multi-select)</label>
                             <div id="selectedCitiesContainer" class="selected-cities"></div>
@@ -828,9 +851,19 @@
                     <div class="spinner"></div>
                     <p>Initializing scraper...</p>
                 </div>
-                <div class="progress-container" id="progressContainer">
-                    <div class="progress-bar" id="progressBar"></div>
-                    <span class="progress-text" id="progressText">0%</span>
+                <div class="progress-container" id="progressContainerAyo">
+                    <div class="progress-label">AYO</div>
+                    <div class="progress-track">
+                        <div class="progress-bar" id="progressBarAyo"></div>
+                        <span class="progress-text" id="progressTextAyo">0%</span>
+                    </div>
+                </div>
+                <div class="progress-container" id="progressContainerGelora">
+                    <div class="progress-label">Gelora</div>
+                    <div class="progress-track">
+                        <div class="progress-bar" id="progressBarGelora"></div>
+                        <span class="progress-text" id="progressTextGelora">0%</span>
+                    </div>
                 </div>
                 <div class="logs-output" id="logsOutput"></div>
             </div>
@@ -869,6 +902,7 @@
         function loadSettingsFromURL() {
             const params = new URLSearchParams(window.location.search);
 
+            if (params.has('platform')) document.getElementById('platform').value = params.get('platform');
             if (params.has('start_date')) document.getElementById('start_date').value = params.get('start_date');
             if (params.has('end_date')) document.getElementById('end_date').value = params.get('end_date');
             if (params.has('cabor')) document.getElementById('cabor').value = params.get('cabor');
@@ -895,6 +929,7 @@
         // Update URL search params with current settings
         function updateURLParams(data) {
             const params = new URLSearchParams();
+            if (data.platform) params.set('platform', data.platform);
             if (data.lokasi) params.set('lokasi', data.lokasi);
             if (data.cabor) params.set('cabor', data.cabor);
             if (data.start_date) params.set('start_date', data.start_date);
@@ -908,7 +943,28 @@
             window.history.replaceState({}, '', newURL);
         }
 
+        // Platform change handler — adapt sport dropdown
+        function updateSportDropdown() {
+            const platform = document.getElementById('platform').value;
+            const cabor = document.getElementById('cabor');
+
+            if (platform === 'gelora') {
+                // Gelora only supports Tennis
+                cabor.value = '7';
+                cabor.disabled = true;
+            } else if (platform === 'all') {
+                // When "All", only Tennis is common
+                cabor.value = '7';
+                cabor.disabled = true;
+            } else {
+                cabor.disabled = false;
+            }
+        }
+
+        document.getElementById('platform').addEventListener('change', updateSportDropdown);
+
         loadSettingsFromURL();
+        updateSportDropdown();
 
         // Check rate limit on page load
         async function checkRateLimit() {
@@ -1118,6 +1174,7 @@
                 : '';
 
             const data = {
+                platform: formData.get('platform'),
                 lokasi: lokasiValue,
                 cabor: formData.get('cabor'),
                 start_date: formData.get('start_date'),
@@ -1143,9 +1200,14 @@
             document.getElementById('logsOutput').classList.remove('active');
             document.getElementById('results').classList.remove('active');
             document.getElementById('error').classList.remove('active');
-            document.getElementById('progressContainer').classList.remove('active');
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('progressText').textContent = '0%';
+            // Show progress bars based on selected platform
+            const selectedPlatform = data.platform || 'ayo';
+            document.getElementById('progressBarAyo').style.width = '0%';
+            document.getElementById('progressTextAyo').textContent = '0%';
+            document.getElementById('progressBarGelora').style.width = '0%';
+            document.getElementById('progressTextGelora').textContent = '0%';
+            document.getElementById('progressContainerAyo').classList.toggle('active', selectedPlatform === 'ayo' || selectedPlatform === 'all');
+            document.getElementById('progressContainerGelora').classList.toggle('active', selectedPlatform === 'gelora' || selectedPlatform === 'all');
             document.getElementById('submitBtn').disabled = true;
             document.getElementById('logsOutput').textContent = '';
             document.getElementById('output').textContent = '';
@@ -1192,13 +1254,16 @@
 
                 currentEventSource.addEventListener('progress', function(event) {
                     const data = JSON.parse(event.data);
-                    const progressContainer = document.getElementById('progressContainer');
-                    const progressBar = document.getElementById('progressBar');
-                    const progressText = document.getElementById('progressText');
+                    const plat = data.platform || 'ayo';
+                    const suffix = plat === 'gelora' ? 'Gelora' : 'Ayo';
 
-                    progressContainer.classList.add('active');
-                    progressBar.style.width = data.percent + '%';
-                    progressText.textContent = `${data.current}/${data.total} venues (${data.percent}%)`;
+                    const container = document.getElementById('progressContainer' + suffix);
+                    const bar = document.getElementById('progressBar' + suffix);
+                    const text = document.getElementById('progressText' + suffix);
+
+                    container.classList.add('active');
+                    bar.style.width = data.percent + '%';
+                    text.textContent = `${data.current}/${data.total} (${data.percent}%)`;
                 });
 
                 currentEventSource.addEventListener('complete', async function(event) {

@@ -725,7 +725,7 @@ class VenueScraper:
                     print(f"  ❌ {venue['name']} | url -> {venue['url']} | slot available -> {slot_status}")
             
             # Emit progress for SSE consumers
-            print(f"__PROGRESS__:{i}:{len(venues_to_process)}")
+            print(f"__PROGRESS__:ayo:{i}:{len(venues_to_process)}")
 
             # Be respectful - add delay between venue requests
             time.sleep(2)

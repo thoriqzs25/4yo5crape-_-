@@ -3,6 +3,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from venue_scraper import VenueScraper
+from gelora_scraper import GeloraScraper
 import io
 import sys
 from contextlib import redirect_stdout
@@ -80,7 +81,13 @@ def filter_progress_logs(logs):
             '✅', '❌',
             'Scraping completed',
             'available fields',
-            'Processing all'
+            'Processing all',
+            '[AYO]',
+            '[GELORA]',
+            'Gelora scraper',
+            'Gelora scraping',
+            'Fetching date:',
+            'total slots'
         ]):
             filtered.append(line)
 
@@ -98,14 +105,32 @@ def run_scraper_thread(session_id, config):
         def log_callback(msg):
             pass  # LogCapture will handle the queue directly
 
-        # Run the scraper with stdout capture
+        # Run the scraper(s) with stdout capture
         log_capture = LogCapture(log_callback, message_queue)
-        with redirect_stdout(log_capture):
-            scraper = VenueScraper(config)
-            scraper.scrape_venues()
+        platform = config.get('platform', 'ayo')
 
-        # Get results
-        venues_data = scraper.venues
+        with redirect_stdout(log_capture):
+            venues_data = []
+
+            if platform in ('ayo', 'all'):
+                print("=" * 40)
+                print("[AYO] Starting AYO scraper...")
+                print("=" * 40)
+                ayo_scraper = VenueScraper(config)
+                ayo_scraper.scrape_venues()
+                for v in ayo_scraper.venues:
+                    v['platform'] = 'ayo'
+                venues_data.extend(ayo_scraper.venues)
+
+            if platform in ('gelora', 'all'):
+                print("=" * 40)
+                print("[GELORA] Starting Gelora scraper...")
+                print("=" * 40)
+                gelora_scraper = GeloraScraper(config)
+                gelora_scraper.scrape_venues()
+                for v in gelora_scraper.venues:
+                    v['platform'] = 'gelora'
+                venues_data.extend(gelora_scraper.venues)
 
         # Generate output text
         output_text = generate_output_text(venues_data, config)
@@ -197,22 +222,25 @@ def scrape():
         data = request.get_json()
 
         # Build config from form inputs
+        platform = data.get('platform', 'ayo')
+
         config = {
             'base_url': 'https://ayo.co.id',
             'venues_path': '/venues',
-            'sortby': int(data.get('sortby', 5)),
+            'sortby': int(data.get('sortby') or 5),
             'tipe': 'venue',
             'lokasi': data.get('lokasi', ''),
-            'cabor': int(data.get('cabor', 7)),
-            'max_venues_to_test': int(data.get('max_venues', 0)),
+            'cabor': int(data.get('cabor') or 7),
+            'max_venues_to_test': int(data.get('max_venues') or 0),
             'use_selenium': False,  # Always use API mode (faster and more reliable)
             'use_api': True,  # Always use API mode
-            'start_date': data.get('start_date', datetime.now().strftime('%Y-%m-%d')),
-            'end_date': data.get('end_date', datetime.now().strftime('%Y-%m-%d')),
-            'max_pages': int(data.get('max_pages', 1)),
+            'start_date': data.get('start_date') or datetime.now().strftime('%Y-%m-%d'),
+            'end_date': data.get('end_date') or datetime.now().strftime('%Y-%m-%d'),
+            'max_pages': int(data.get('max_pages') or 1),
             'start_time': data.get('start_time', ''),  # Optional start time filter (HH:MM format)
             'end_time': data.get('end_time', ''),  # Optional end time filter (HH:MM format)
-            'cheapest_first': data.get('cheapest_first', False)  # Sort results by cheapest first
+            'cheapest_first': data.get('cheapest_first', False),  # Sort results by cheapest first
+            'platform': platform
         }
 
         # Update rate limit for this IP
@@ -271,12 +299,18 @@ def scrape_progress(session_id):
                     yield f"event: error\ndata: {json.dumps({'error': error_msg})}\n\n"
                     break
                 elif message.startswith('__PROGRESS__:'):
-                    # Send progress event
+                    # Send progress event — format: __PROGRESS__:platform:current:total
                     parts = message.split(':')
-                    current = int(parts[1])
-                    total = int(parts[2])
+                    if len(parts) == 4:
+                        plat = parts[1]
+                        current = int(parts[2])
+                        total = int(parts[3])
+                    else:
+                        plat = 'ayo'
+                        current = int(parts[1])
+                        total = int(parts[2])
                     pct = int((current / total) * 100) if total > 0 else 0
-                    yield f"event: progress\ndata: {json.dumps({'current': current, 'total': total, 'percent': pct})}\n\n"
+                    yield f"event: progress\ndata: {json.dumps({'platform': plat, 'current': current, 'total': total, 'percent': pct})}\n\n"
                 else:
                     # Filter and send progress message
                     filtered = filter_progress_logs(message)
@@ -319,10 +353,111 @@ def scrape_result(session_id):
         'count': session['count']
     })
 
+def _get_venue_min_price(venue):
+    """Get the minimum slot price for a venue (for cheapest-first sorting)."""
+    min_price = float('inf')
+    if venue.get('available_fields'):
+        for field in venue['available_fields']:
+            for slot in field.get('time_slots', []):
+                try:
+                    p = int(slot.get('price', 0))
+                    if p > 0:
+                        min_price = min(min_price, p)
+                except (ValueError, TypeError):
+                    pass
+    elif venue.get('time_slots') and isinstance(venue['time_slots'][0], dict):
+        for slot in venue['time_slots']:
+            try:
+                p = int(slot.get('price', 0))
+                if p > 0:
+                    min_price = min(min_price, p)
+            except (ValueError, TypeError):
+                pass
+    return min_price
+
+def _format_price(price):
+    """Format price with thousands separator: 150000 -> 'Rp 150,000'"""
+    if price is None or price == 'N/A' or price == '':
+        return 'Price not available'
+    try:
+        p = int(price)
+        if p <= 0:
+            return 'Price not available'
+        return f"Rp {p:,}"
+    except (ValueError, TypeError):
+        return str(price)
+
+def _render_venue_block(venue, index, platform, output):
+    """Render a single venue block in the standard grouped format."""
+    ptag = f"[{venue.get('platform', 'ayo').upper()}] " if platform == 'all' else ''
+    output.append(f"{index}. {ptag}{venue['name']}")
+    output.append(f"   URL: {venue['url']}")
+    if venue.get('venue_id'):
+        output.append(f"   Venue ID: {venue['venue_id']}")
+
+    was_scraped = ('available_fields' in venue) or ('time_slots' in venue) or ('slot_status' in venue)
+
+    if not was_scraped:
+        output.append(f"   Status: Not scraped")
+        output.append("")
+        return
+
+    if 'available_fields' in venue and venue['available_fields']:
+        output.append(f"   \n   AVAILABLE SLOTS:")
+        for field in venue['available_fields']:
+            field_name = field.get('field_name', 'Unknown Field')
+            field_status = field.get('slot_status', 'Unknown')
+            output.append(f"\n   Field: {field_name} ({field_status})")
+
+            if field.get('time_slots'):
+                output.append(f"   Available Hours & Prices:")
+                for slot in field['time_slots']:
+                    date = slot.get('date', '')
+                    start = slot.get('start_time', 'N/A')
+                    end = slot.get('end_time', 'N/A')
+                    price_formatted = _format_price(slot.get('price', 'N/A'))
+                    date_prefix = f"{date}  " if date else ""
+                    output.append(f"      • {date_prefix}{start} - {end}  |  {price_formatted}")
+
+    elif 'time_slots' in venue and venue['time_slots']:
+        if isinstance(venue['time_slots'][0], dict):
+            slots_by_field = {}
+            for slot in venue['time_slots']:
+                field = slot.get('field_name', 'Unknown')
+                if field not in slots_by_field:
+                    slots_by_field[field] = []
+                slots_by_field[field].append(slot)
+
+            output.append(f"\n   AVAILABLE SLOTS ({len(venue['time_slots'])} slots):")
+            for field_name, slots in slots_by_field.items():
+                output.append(f"\n   Field: {field_name}")
+                output.append(f"   Available Hours & Prices:")
+                for slot in slots:
+                    date = slot.get('date', '')
+                    start = slot.get('start_time', 'N/A')
+                    end = slot.get('end_time', 'N/A')
+                    price_formatted = _format_price(slot.get('price', 'N/A'))
+                    date_prefix = f"{date}  " if date else ""
+                    output.append(f"      • {date_prefix}{start} - {end}  |  {price_formatted}")
+        else:
+            output.append(f"\n   AVAILABLE SLOTS:")
+            for slot in venue['time_slots']:
+                output.append(f"      - {slot}")
+    elif 'slot_status' in venue:
+        output.append(f"   Status: {venue['slot_status']}")
+    else:
+        output.append(f"   Status: Not scraped")
+
+    output.append("")
+
 def generate_output_text(venues_data, config):
-    """Generate formatted output text similar to the original script"""
+    """Generate formatted output text.
+
+    Both normal and cheapest-first modes use the same grouped format
+    (venue -> field -> slots). Cheapest-first sorts venues by their
+    cheapest available slot price.
+    """
     all_venues = venues_data
-    # Split into venues with and without available slots
     venues_with_slots = [
         v for v in all_venues
         if v.get('available_fields') or v.get('time_slots')
@@ -332,6 +467,9 @@ def generate_output_text(venues_data, config):
         if not (v.get('available_fields') or v.get('time_slots'))
     ]
     venues_data = venues_with_slots
+
+    platform = config.get('platform', 'ayo')
+    platform_label = {'ayo': 'AYO', 'gelora': 'Gelora', 'all': 'AYO + Gelora'}.get(platform, platform)
 
     output = []
     output.append("=" * 80)
@@ -344,6 +482,7 @@ def generate_output_text(venues_data, config):
         output.append(f"Date: {start_date} to {end_date}")
     output.append(f"Location: {config['lokasi'] or 'All Locations'}")
     output.append(f"Sport: {'Tennis' if config['cabor'] == 7 else 'Padel' if config['cabor'] == 12 else 'Pickleball' if config['cabor'] == 15 else config['cabor']}")
+    output.append(f"Platform: {platform_label}")
     output.append(f"Total venues checked: {len(all_venues)}")
     output.append(f"Venues with available slots: {len(venues_data)}")
     output.append(f"Venues with no slots: {len(venues_no_slots)}")
@@ -360,149 +499,13 @@ def generate_output_text(venues_data, config):
 
     output.append("")
 
-    # If cheapest_first is enabled, collect and sort all slots by price
+    # If cheapest_first, sort venues by their minimum slot price
     if config.get('cheapest_first'):
-        all_slots = []
-        for venue in venues_data:
-            venue_name = venue['name']
-            venue_url = venue['url']
+        venues_data = sorted(venues_data, key=_get_venue_min_price)
 
-            # Collect slots from available_fields
-            if 'available_fields' in venue and venue['available_fields']:
-                for field in venue['available_fields']:
-                    field_name = field.get('field_name', 'Unknown Field')
-                    if field.get('time_slots'):
-                        for slot in field['time_slots']:
-                            all_slots.append({
-                                'venue_name': venue_name,
-                                'venue_url': venue_url,
-                                'field_name': field_name,
-                                'date': slot.get('date', ''),
-                                'start_time': slot.get('start_time', 'N/A'),
-                                'end_time': slot.get('end_time', 'N/A'),
-                                'price': slot.get('price', 0)
-                            })
-            # Collect slots from time_slots (fallback)
-            elif 'time_slots' in venue and venue['time_slots']:
-                if isinstance(venue['time_slots'][0], dict):
-                    for slot in venue['time_slots']:
-                        all_slots.append({
-                            'venue_name': venue_name,
-                            'venue_url': venue_url,
-                            'field_name': slot.get('field_name', 'Unknown'),
-                            'date': slot.get('date', ''),
-                            'start_time': slot.get('start_time', 'N/A'),
-                            'end_time': slot.get('end_time', 'N/A'),
-                            'price': slot.get('price', 0)
-                        })
-
-        # Sort slots by price (ascending)
-        all_slots.sort(key=lambda x: int(x['price']) if x['price'] and str(x['price']).isdigit() else float('inf'))
-
-        # Display sorted slots
-        for i, slot in enumerate(all_slots, 1):
-            price = slot['price']
-            if price and price != 'N/A':
-                try:
-                    price_formatted = f"Rp {int(price):,}"
-                except:
-                    price_formatted = str(price)
-            else:
-                price_formatted = 'Price not available'
-
-            date_str = f" ({slot['date']})" if slot.get('date') else ""
-            output.append(f"{i}. {slot['venue_name']} - {slot['field_name']}{date_str}")
-            output.append(f"   Time: {slot['start_time']} - {slot['end_time']}  |  {price_formatted}")
-            output.append(f"   URL: {slot['venue_url']}")
-            output.append("")
-
-        return "\n".join(output)
-
+    # Render each venue in the same grouped format
     for i, venue in enumerate(venues_data, 1):
-        output.append(f"{i}. {venue['name']}")
-        output.append(f"   URL: {venue['url']}")
-        if venue.get('venue_id'):
-            output.append(f"   Venue ID: {venue['venue_id']}")
-
-        # Check if venue was scraped or not
-        was_scraped = ('available_fields' in venue) or ('time_slots' in venue) or ('slot_status' in venue)
-
-        if not was_scraped:
-            output.append(f"   Status: Not scraped")
-            output.append("")
-            continue
-
-        # Check for available_fields (API mode data structure)
-        if 'available_fields' in venue and venue['available_fields']:
-            output.append(f"   \n   AVAILABLE SLOTS:")
-            for field in venue['available_fields']:
-                field_name = field.get('field_name', 'Unknown Field')
-                field_status = field.get('slot_status', 'Unknown')
-                output.append(f"\n   Field: {field_name} ({field_status})")
-
-                # Show time slots for this field
-                if field.get('time_slots'):
-                    output.append(f"   Available Hours & Prices:")
-                    for slot in field['time_slots']:
-                        date = slot.get('date', '')
-                        start = slot.get('start_time', 'N/A')
-                        end = slot.get('end_time', 'N/A')
-                        price = slot.get('price', 'N/A')
-                        # Format price with thousands separator
-                        if price != 'N/A' and price != '':
-                            try:
-                                price_formatted = f"Rp {int(price):,}"
-                            except:
-                                price_formatted = price
-                        else:
-                            price_formatted = 'Price not available'
-                        date_prefix = f"{date}  " if date else ""
-                        output.append(f"      • {date_prefix}{start} - {end}  |  {price_formatted}")
-
-        # Fallback for time_slots (Selenium mode or old data structure)
-        elif 'time_slots' in venue and venue['time_slots']:
-            output.append(f"\n   AVAILABLE SLOTS ({len(venue['time_slots'])} slots):")
-
-            # Check if time_slots are objects (with detailed info) or just strings
-            if isinstance(venue['time_slots'][0], dict):
-                # Group slots by field name for better readability
-                slots_by_field = {}
-                for slot in venue['time_slots']:
-                    field = slot.get('field_name', 'Unknown')
-                    if field not in slots_by_field:
-                        slots_by_field[field] = []
-                    slots_by_field[field].append(slot)
-
-                # Display slots grouped by field
-                for field_name, slots in slots_by_field.items():
-                    output.append(f"\n   Field: {field_name}")
-                    output.append(f"   Available Hours & Prices:")
-                    for slot in slots:
-                        date = slot.get('date', '')
-                        start = slot.get('start_time', 'N/A')
-                        end = slot.get('end_time', 'N/A')
-                        price = slot.get('price', 'N/A')
-                        # Format price with thousands separator
-                        if price != 'N/A' and price != '':
-                            try:
-                                price_formatted = f"Rp {int(price):,}"
-                            except:
-                                price_formatted = price
-                        else:
-                            price_formatted = 'Price not available'
-                        date_prefix = f"{date}  " if date else ""
-                        output.append(f"      • {date_prefix}{start} - {end}  |  {price_formatted}")
-            else:
-                # If time_slots are strings, display them as before
-                for slot in venue['time_slots']:
-                    output.append(f"      - {slot}")
-        elif 'slot_status' in venue:
-            # Venue was checked but has no slots
-            output.append(f"   Status: {venue['slot_status']}")
-        else:
-            output.append(f"   Status: Not scraped")
-
-        output.append("")
+        _render_venue_block(venue, i, platform, output)
 
     return "\n".join(output)
 
@@ -548,5 +551,5 @@ def download(format):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 3000))
+    port = int(os.environ.get('PORT', 3001))
     app.run(host='0.0.0.0', port=port, debug=True)
