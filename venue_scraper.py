@@ -45,8 +45,44 @@ class VenueScraper:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
         })
+        # Configure connection pool and adapter for resilience
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=20,
+            max_retries=0  # we handle retries manually for better logging
+        )
+        self.session.mount('https://', adapter)
+        self.session.mount('http://', adapter)
         self.venues = []
         self.single_venue_scraper = None
+
+    def _request_with_retry(self, method, url, **kwargs):
+        """Make an HTTP request with retry on transient failures."""
+        timeout = kwargs.pop('timeout', (10, 20))  # (connect, read)
+        max_retries = kwargs.pop('max_retries', 3)
+        backoff = kwargs.pop('backoff', 2)
+
+        last_exception = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = self.session.request(method, url, timeout=timeout, **kwargs)
+                response.raise_for_status()
+                return response
+            except (requests.Timeout, requests.ConnectionError) as e:
+                last_exception = e
+                wait = backoff ** attempt
+                print(f"    ⚠️  Request failed ({type(e).__name__}), retrying in {wait}s... (attempt {attempt}/{max_retries})")
+                time.sleep(wait)
+            except requests.HTTPError as e:
+                # Retry on 502/503/504 server errors
+                if e.response is not None and e.response.status_code in (502, 503, 504):
+                    last_exception = e
+                    wait = backoff ** attempt
+                    print(f"    ⚠️  Server error {e.response.status_code}, retrying in {wait}s... (attempt {attempt}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    raise
+        raise last_exception
 
     def get_date_range(self):
         """Generate list of date strings from start_date to end_date"""
@@ -101,10 +137,9 @@ class VenueScraper:
             return False
 
     def get_page_content(self, url):
-        """Fetch page content with error handling"""
+        """Fetch page content with error handling and retry"""
         try:
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
+            response = self._request_with_retry('GET', url, timeout=(10, 15))
             return BeautifulSoup(response.content, 'html.parser')
         except requests.RequestException as e:
             print(f"Error fetching {url}: {e}")
@@ -232,9 +267,8 @@ class VenueScraper:
                 api_url = f"{self.base_url}/venues-ajax/op-times-and-fields?venue_id={venue_id}&date={date}"
                 print(f"    🔗 API URL: {api_url}")
 
-                # Make API request
-                response = self.session.get(api_url)
-                response.raise_for_status()
+                # Make API request with retry and timeout
+                response = self._request_with_retry('GET', api_url, timeout=(10, 20))
 
                 # Parse JSON response
                 api_data = response.json()
